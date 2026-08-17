@@ -1,0 +1,55 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setdefaultlanguage{english}
+
+\setmainfont{Cochineal}[
+  Numbers={OldStyle,Proportional},
+  SmallCapsFeatures={LetterSpace=2.0}
+]
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{newtxmath} % Matching math font for Cochineal
+\usepackage{tikz-cd}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\definecolor{orcidlogocolor}{HTML}{A6CE39}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=blue!70!black
+}
+
+\title{%
+  \Huge \textbf{Tacet: An Honest Approach to Value Reification} \\[0.4em]
+  \Large \textsf{Pure Value Semantics and Linear Obligation Tracking Without Monads}
+}
+
+\author{%
+  \textbf{Ramon Opazo} \\
+  \small \href{mailto:ramon.opazo.c@gmail.com}{\texttt{ramon.opazo.c@gmail.com}} \\
+  \small \href{https://github.com/RamonOpazo/tacet-lang}{\texttt{github.com/RamonOpazo/tacet-lang}} \\[0.2em]
+  \small Independent Research
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\input{sections/00_abstract.latex}
+\input{sections/01_introduction.latex}
+% \input{sections/02_typing_rules.latex}
+% \input{sections/03_operational_semantics.latex}
+% \input{sections/04_conclusion.latex}
+
+\end{document}
