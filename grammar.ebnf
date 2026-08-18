@@ -1,0 +1,268 @@
+# Tacet Grammar (ISO EBNF)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# The grammar encodes STRUCTURE ONLY. It is deliberately permissive: it accepts a
+# superset of valid programs. Fixity comes from spacing; blocks from indentation.
+# Associativity, witness discharge, closure resolution, term/type distinction,
+# and every other semantic fact are deferred to the analyser. Nothing here
+# interprets --- the parse produces flat runs; the analyser folds them into trees.
+
+# ── Token kinds ───────────────────────────────────────────────────────────────
+#   _         significant whitespace:       one or more spaces, no tabs
+#   TACET     the sole keyword (reserved):  tacet
+#   TYPE_ID   uppercase-initial ident:      Bool, Int, MyType
+#   NAME_ID   lowercase-initial ident:      foo, my_fn, _
+#   OPER      operator:                     + * -> => := :: |> ...
+#   SEP       structural separator:         ,
+#   L_PAR R_PAR   parentheses:              ( )
+#   L_BRA R_BRA   brackets:                 [ ]
+#   L_CUR R_CUR   curlies:                  { }
+#   TAG       message / linear witness:     #Load, #Infix, #Undef
+#   NUM       number literal:               42, 0.3, 0b01
+#   STR       string literal:               "hello"
+#   CHR       character literal:            0uA, 0u\n
+#   COMMENT   line comment:                 // ...
+#   INDENT DEDENT EOL EOF
+
+#   `oper_id` (the operator as a value: (+) [->] {::}) is NOT a lexer token --- it
+#   is a PARSER production ENC OPER ENC. It cannot be lexed, because the operator-
+#   value vs container distinction is structural, not lexical: (+) is a value but
+#   (+a) and (.a) are containers holding Prefix("+",a) / Prefix(".",a), and (+a)
+#   has no interior space either. "Is there an atom after the operator" is a parse
+#   question, so the parser owns it. See the oper_id / group productions.
+
+#   ENC is the collective name for the six enclosure tokens
+#   (L_PAR R_PAR L_BRA R_BRA L_CUR R_CUR). They are matched by construction in
+#   `group`, so mismatched brackets like ( x ] are ungrammatical, not merely
+#   ill-formed. The three KINDS (paren/bracket/curly) carry semantic meaning
+#   (scope / list / set) resolved later; the token names stay purely syntactic.
+
+# ── Classification ────────────────────────────────────────────────────────────
+#   OPER      plays the spacing game --- fixity is positional (prefix / juxtafix /
+#             postfix / infix from adjacency). Each operator carries exactly ONE
+#             semantic bit: its associativity (left | right), read from the
+#             primitive table at resolve, keyed on the SYMBOL, never on operand
+#             type. There is NO precedence table.
+#   SEP, ENC  structural: positional, never in operator position, spacing-
+#             insensitive (adjacent _ is inert; absorbed by the lexer).
+#   oper_id   a PARSER production, ENC OPER ENC --- the operator's NAME as a value,
+#             an identifier alongside TYPE_ID and NAME_ID. It is disjoint from a
+#             container because a container's `inner` needs an atom and oper_id's
+#             content is a bare operator: (+) is only oper_id, (+a) is only a
+#             container. Spacing inside is irrelevant; the distinction is whether
+#             an atom follows. The bracket KIND selects a projection (see node
+#             model): (op) the function, {op} the associativity, [op] the sig.
+#   TAG       positional, and NOT an atom (cannot stand as a bare expression):
+#               after TACET    -> the ONE linear witness it dispatches  [Tacet]
+#               trailing expr  -> general annotation run (zero or more)  [Annot]
+#             The two slots are non-interchangeable.
+#   TACET     an atom, appearing anywhere an atom can (inline, in any expression).
+#             Dispatches exactly ONE witness and ends right there --- no block, no
+#             scope-header. Its influence is the enclosing Seq closure, exactly as
+#             := introduces a name into the current closure and nothing more.
+#             `tacet #Partial` = Tacet(#Partial). A further trailing tag is a
+#             general annotation on the whole expression, not a second witness.
+
+# ── Identifier family  (three names for three kinds of thing) ─────────────────
+#   TYPE_ID  names a type       -> TypeId(name)          (lexer token)
+#   NAME_ID  names a value/fn   -> NameId(name)          (lexer token)
+#   oper_id  names an operator  -> OperId(bracket, op)   (parser production)
+#   Each may bind (left of :=) or refer (standalone). `(+) := add #LeftAssoc`
+#   binds the operator name exactly as `foo := ...` binds a value name. OperId
+#   carries one extra field --- the bracket --- because an operator name is projected
+#   three ways where a type/value name is not. (oper_id is a production, not a
+#   token, because its recognition is structural --- see the token note above.)
+
+# ── Tag families  (SEMANTIC, not structural --- the grammar sees only a tag) ──
+#   Every TAG is structurally identical: it appears glued to `tacet` (the one
+#   witness) or trailing an expression (the annotation run). The grammar does NOT
+#   distinguish what a tag MEANS --- that is the analyser's job, routed by the tag's
+#   identity through an open registry. Three families are expected:
+#     witness    #Partial #Writes #Awaits    runtime; discharged linearly
+#     directive  #Load #Module                analysis-time; consumed by analyser
+#     fixity     #LeftAssoc #RightAssoc       analysis-time; sets operator table
+#   The families are OPEN: a new tag is a new registry row, ZERO grammar change.
+#   Keeping them semantic is the same choice as operators and witnesses being
+#   analyser data, not enumerated productions --- one annotation slot serves all.
+
+#   Module use-cases ride `annot` with no new syntax. A path is an ordinary
+#   expression (e.g. `/` an operator over identifiers); a directive is a trailing
+#   tag; their combination is Annot(path, [tag]):
+#     stdlib/strings #Load            load module `strings` (named by its tail)
+#     words := stdlib/strings #Load   load, bound to `words` (:= looser than the
+#                                     tag, so #Load annotates the path, not the
+#                                     binding --- correct by tier order)
+#     my_project/.../this #Module     declare the current module's identity
+#   Tacet has no import syntax and no module-declaration syntax as constructs:
+#   it has paths (expressions) and directives (tags). The analyser decides
+#   validity --- `path #Nonsense` PARSES (Annot) and is rejected semantically, not
+#   structurally, which is the permissive-grammar principle working as intended.
+
+# ── The tower  (loosest -> tightest; each nonterminal names one node) ─────────
+#   seq     SEP-separated base sequence            Seq<()>
+#   annot   trailing tags on a complete expr       Annot
+#   infix   spaced operators                       Infix
+#   apply   juxtaposition                          Apply
+#   tight   adjacency                              Prefix | Juxtafix | Postfix
+#   A run is flattened at construction; fixity is discharged there. A tree is
+#   produced only on demand, by folding the flat run (see BINDING ORDER).
+
+# ── Binding order  (no precedence; derived from associativity + tier) ─────────
+#   Four levels, tightest -> loosest, each forced by structure, none declared:
+#       tight       adjacency, single line, scalar operands        (tightest)
+#       apply       juxtaposition; folds LEFT   (f x y = (f x) y)
+#       left-assoc  spaced OPER, folds LEFT among themselves
+#       right-assoc spaced OPER, folds RIGHT among themselves        (loosest)
+#   Right-assoc is loosest because every outer-structure operator is right-
+#   associative --- a head with an arbitrarily large tail (-> => := ::). That
+#   shape is right-folding AND outermost; the two are one fact.
+#     1 + 2 * 3          -> ((1 + 2) * 3)      same class (left), fold left
+#     a + b -> c         -> ((a + b) -> c)     right (->) wraps left (+)
+#     f :: Int -> Int    -> (f :: (Int -> Int))  :: and -> both right, fold right
+#   RESOLVE is partition-then-fold, no climbing: right-assocs define the coarse
+#   right-folded spine; each gap between them is a left-fold; apply and tight
+#   fold within operands. Indentation is a SECOND, explicit grouping channel that
+#   overrides the default fold (deeper = tighter / new closure --- see below).
+
+# ── Seq operands by tier  (whether a newline can reach the operand) ───────────
+#   A block is a sequence of lines. An operand can be a Seq iff its tier admits an
+#   EOL at the operand boundary --- iff it can host a block:
+#       apply     yes  -> Apply(seq)     block lines are the argument sequence
+#       infix     yes  -> Infix(op, seq) dangling-op block is the right-operand seq
+#       juxtafix  NO   -> Juxtafix(op,a,b) EOL breaks adjacency; a seq is UNWRITABLE
+#   For apply and infix, deeper indentation opens a new closure / tighter group;
+#   sibling lines are same-level operands. Juxtafix is confined to one line by
+#   construction (`tight` contains no EOL), so its seq is impossible, not forbidden.
+#   The tight tier hosts no EOL and no SEP, so ALL of its operators are scalar:
+#       prefix  and  postfix  are UNARY   (decorate one atom, left / right)
+#       juxtafix              is BINARY   (joins two atoms)
+#   The `,`-terminator is never postfix --- commas are SEP (structural). Postfix is
+#   x!, xs... : one operator on one atom. One axis (newline-at-boundary) cuts the
+#   operator tower once: everything tight is scalar; everything spaced is a seq.
+
+# ── Node model  (closed; every production lands in exactly one kind) ──────────
+#   flat sequence + assoc bit          scalar tight            leaf / binder
+#   ───────────────────────            ────────────            ─────────────
+#   Seq(kind, [Expr])                  Juxtafix(op, a, b)      Tag(msg)
+#   Annot(e, [Tag])                    Prefix(op, it)          OperId(brk, op)
+#   Infix(op, seq)                     Postfix(op, it)         Tacet(witness)
+#   Apply(seq)                                                 TypeId  NameId
+#                                                              NUM STR CHR
+#   Seq does NOT collapse; each Seq is a closure. Infix/Apply carry their OWN flat
+#   list, never a Seq (else f a b would read as a closure boundary). Tag is a leaf
+#   only inside Tacet/Annot, never a bare atom. Tacet is an atom carrying exactly
+#   ONE witness Tag; it dispatches that witness at its position and ends there,
+#   scoped by the enclosing Seq (no body). OperId carries the bracket kind, which
+#   selects the projection: (op) function, {op} associativity, [op] signature. No
+#   node carries a payload its tier cannot produce; no tier produces a shape
+#   without a node. Throw any construct at the four kinds --- it lands, and none
+#   forces a fifth.
+
+# ── Sequences and closures ────────────────────────────────────────────────────
+#   Every ENC opens a closure. Seq does NOT collapse: Seq[Seq[a,b],c] is distinct
+#   from Seq[a,b,c] --- a new sequence is a new context. Closures are OPAQUE by
+#   construction, but TRANSPARENT whenever their environment extension is the
+#   identity --- i.e. they bind no name visible in their body. Then the closure's
+#   value is its body in the enclosing environment, so (a) = a --- always, because
+#   (a) introduces no a. A binder in the body (:=, a tacet witness, a lambda
+#   parameter, a binding =>) makes the closure opaque. Transparency is decidable
+#   structurally, from the subtree alone, and is stable under any change outside
+#   the closure.
+#   Corollary: grouping-for-precedence is always transparent; only binding
+#   brackets carry weight. One construct; the two roles are extension = id or not.
+
+# ── Binding  (no shadowing of the visible) ────────────────────────────────────
+#   Tacet is immutable: := binds, never assigns. A := binding of n is ILLEGAL iff
+#   n is currently reachable (bound earlier in the same Seq, or in an enclosing
+#   closure). Visibility = the enclosing Seq subtree. Siblings thread forward;
+#   inner sees outer; one bind per name per Seq. Enforced outer-to-inner during
+#   resolve: push a scope frame per closure, insert per :=, POP on closure exit
+#   (release is free). O(N) --- one hash probe per binding, fused into resolve.
+#     Seq("()", [ (x := 0), (x := 1), 2 ])   legal  (each () a fresh closure)
+#     Seq("()", [ x := 0,   x := 1,   2 ])   illegal (same closure, x rebound)
+#   The check tests BINDINGS against visible scope; it never resolves references,
+#   so recursion (is := recursive?) never enters it --- a body's `f` is a use.
+
+# ── Scope  (no production needed) ─────────────────────────────────────────────
+#   A trailing OPER with an empty right operand + EOL block resolves to a Scope:
+#   `f :=` then a block splices the block into the dangling operand.
+
+# ── Lexer obligations  (structural, unstatable in productions) ────────────────
+#   L1  Line-final _ is stripped before EOL. A trailing space must never survive
+#       to distinguish postfix-complete from dangling-infix.
+#   L2  _ adjacent to SEP or ENC is absorbed:  a , b -> a SEP b.
+#   L3  TACET lexes as the keyword, never NAME_ID.
+#   L4  // is comment-only, by maximal munch --- never two / operators. The _
+#       before a COMMENT is pure formatting and is absorbed: `x  // note` lexes
+#       as `x COMMENT`, no _ between. So `line` needs no space between seq and
+#       COMMENT; the gap is a lexer concern, like L2, not a structural one.
+
+#   (There is no lexer obligation for operator-values: (+) etc. is the parser
+#   production oper_id, because the value/container distinction is structural,
+#   not lexical --- see the token note near the top.)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+program
+    = { line } EOF
+    ;
+
+line
+    = [ seq ] [ COMMENT ] EOL [ block ]
+    ;
+
+block
+    = INDENT { line } DEDENT
+    ;
+
+seq
+    = annot { [ _ ] SEP [ _ ] annot }
+    ;
+
+annot
+    = infix { _ TAG }
+    ;
+
+infix
+    = apply { _ OPER [ _ apply ] }
+    ;
+
+apply
+    = tight { _ tight }
+    ;
+
+tight
+    = [ OPER ] atom { OPER atom } [ OPER ]
+    ;
+
+atom
+    = TYPE_ID
+    | NAME_ID
+    | NUM
+    | STR
+    | CHR
+    | tacet
+    | oper_id
+    | group
+    ;
+
+tacet
+    = TACET _ TAG
+    ;
+
+oper_id
+    = L_PAR OPER R_PAR
+    | L_BRA OPER R_BRA
+    | L_CUR OPER R_CUR
+    ;
+
+group
+    = L_PAR inner R_PAR
+    | L_BRA inner R_BRA
+    | L_CUR inner R_CUR
+    ;
+
+inner
+    = [ _ ] [ seq [ _ ] ]
+    | EOL block
+    ;
