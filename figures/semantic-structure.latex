@@ -1,0 +1,29 @@
+\begin{tikzcd}[column sep=5em, row sep=5em]
+& & A
+	\ar[d, "\text{select}_f"]
+& & L
+	\ar[from=d, hook] \\
+& B
+	\ar[from=r, hook]
+& B_f
+	\ar[d, "\text{eval}"]
+	\ar[rr, draw=none, decoration={snake, amplitude=0.4mm, segment length=2mm, post length=1mm}, preaction={draw, decorate}, "\text{obligations}"]
+& & L_f
+	\ar[from=ddd, "\text{expose}"'] \\
+\bot
+& & R
+	\ar[from=dl, hook]
+	\ar[from=dr, hook] \\
+& V
+	\ar[lu, "/" marking]
+	\ar[from=d, hook]
+& & W
+	\ar[from=dl, hook]
+	\ar[from=dr, hook] \\
+& V_T
+	\ar[from=d, hook]
+& W_0
+& & |[alias=WL]| W_L \\
+& |[alias=VT]| V_{\widetilde{T}}
+	\ar[urrr, draw=none, decoration={snake, amplitude=0.4mm, segment length=2mm, post length=1mm}, preaction={draw, decorate}, bend right=45, "\text{tacet}"]
+\end{tikzcd}

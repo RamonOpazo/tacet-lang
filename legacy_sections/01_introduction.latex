@@ -1,0 +1,28 @@
+\chapter{Introduction}
+\label{ch:intro}
+
+Mainstream type systems provide weaker execution guarantees than their function types appear to suggest, while leaving that weakening implicit. When a function signature claims to return a type $\tau$, but execution can silently terminate through panic or bottom-type ($\bot$) pollution, the caller's static guarantees---and the intended semantic contract established by the signature---are violated. In effect, such systems provide no genuine semantic guarantee, although respecting the declared return domain is but a natural expectation of an honest calculus. What they lack are explicit static guarantees that close the gap semantically.
+
+Some implementations model failures as monadic encapsulations, decoupling computational effects from their underlying values. Haskell provides a canonical example: failure may be represented explicitly through types such as $\textit{Maybe}$ or $\textit{Either}$, transforming a function that might otherwise fail from $A \to B$ into, for example, $A \to \textit{Maybe}\,B$. The failure state is thereby reified in the return type and propagated through subsequent computations. However, this abstraction can introduce significant cognitive friction, as callers must continuosly reason about the computational context in addition to the underlying value. Although the failure is statically represented, the computational effect remains encoded within a wrapper that must be explicitly inspected or composed. The resulting function may be total with respect to the monadic domain, but its failure semantic have been moved from the computational outcome into the value-level representation.
+
+This distinction suggests a useful separation between the value space and the computational outcome space. A value space is \emph{weak} when computational failure is represented within the same domain as successful values. For instance, $\textit{Maybe}\,B$ replaces the value domain $B$ with a domain that additionally representes failure, making the absence of a value representable within the enclosing type. Conversely, a value space is \emph{strong} when it preserves the distinction between values and computational outcomes: $\tau$ contains only values of type $\tau$, while failure, divergence, or exceptional termination remain separate computational outcomes.
+
+Other implementations model failures as exceptions, that is, runtime control-flow objects that interrupt normal execution and propagate outward until handled. Python provides a representative example. A function annotated as $f : A \to B$ may return a value of type $B$, but may also raise an exception without that possibility being represented in its return annotation. An unhandled exception continues propagating through the call stack, potentially obscuring the origin of the failure and violating the apparent totality of a function whose signature declares only a return type, while providing no static indication that execution may terminate exceptionally. Unlike the monadic case, the exceptional outcome is not merely wrapped in the return value; it constitute a distinct control-flow path that remains invisible to the ordinary function type.
+
+As a matter of fact, the critical dishonesty is rooted in the fact that mainstream type systems represent only the successful value-producing behaviour of functions, whereas the semantically intended signature oversells the guarantees.
+
+Consider the semantic outcome space of a function as
+
+$$
+\llbracket f \rrbracket : A \to \tau + E + \{ \bot \},
+$$
+
+where $\tau$ represents succesful values, $E$ representes exceptional termination, and $\bot$ representes a computation that produces no value, such as divergence or undefined evaluation. The ordinary type system, however, may expose only
+
+$$
+f : A \to \tau.
+$$
+
+The gap between the semantic outcome space and the declared return domain is the interesting part, and the motivation for researching a better calculus: one that maintain complete signature honesty while preserving a strong value space, exposing only the minimal machinery necessary to reify its contracts within the semantic domain.
+
+We address this gap by separating values from obligations and making failure an explicitly witnessed computational phenomenon. A witness produces a linear obligation that must be consumed, either to reintroduce a value into the strong value space or to defer the obligation by producing a new one. In this manner, we aim to maintain stric strong value space under semantically honest function signature, with minimal syntactic surface.

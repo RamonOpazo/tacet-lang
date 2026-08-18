@@ -1,4 +1,4 @@
-\documentclass[11pt,a4paper]{article}
+\documentclass[11pt,a4paper]{memoir}
 
 \usepackage{fontspec}
 \usepackage{polyglossia}
@@ -12,8 +12,9 @@
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{newtxmath} % Matching math font for Cochineal
 \usepackage{tikz-cd}
+\usetikzlibrary{decorations.pathmorphing}
 
-\usepackage[margin=1in]{geometry}
+\usepackage[margin=1.5in]{geometry}
 \usepackage{microtype}
 \usepackage{booktabs}
 \usepackage{hyperref}
@@ -29,15 +30,19 @@
 }
 
 \title{%
-  \Huge \textbf{Tacet: An Honest Approach to Value Reification} \\[0.4em]
-  \Large \textsf{Pure Value Semantics and Linear Obligation Tracking Without Monads}
+  \Huge \textbf{Tacet:\\An Honest Approach to Value Reification}
 }
 
 \author{%
   \textbf{Ramon Opazo} \\
-  \small \href{mailto:ramon.opazo.c@gmail.com}{\texttt{ramon.opazo.c@gmail.com}} \\
-  \small \href{https://github.com/RamonOpazo/tacet-lang}{\texttt{github.com/RamonOpazo/tacet-lang}} \\[0.2em]
-  \small Independent Research
+  \small%
+    \href{mailto:ramon.opazo.c@gmail.com}%
+    {\texttt{ramon.opazo.c@gmail.com}} \\
+  \small%
+    \href{https://github.com/RamonOpazo/tacet-lang}%
+    {\texttt{github.com/RamonOpazo/tacet-lang}} \\[0.25em]
+  \small%
+    \emph{Independent Research}
 }
 
 \date{\today}
@@ -46,10 +51,13 @@
 
 \maketitle
 
-\input{sections/00_abstract.latex}
-\input{sections/01_introduction.latex}
-% \input{sections/02_typing_rules.latex}
-% \input{sections/03_operational_semantics.latex}
-% \input{sections/04_conclusion.latex}
+\newpage
+
+% \input{sections/00_abstract.latex}
+
+% \newpage
+
+\input{sections/100_introduction.latex}
+% \input{sections/200_semantics.latex}
 
 \end{document}
