@@ -1,8 +1,8 @@
 # Chapter 2 · Formal semantics
 
-We now develop the calculus sketched in the introduction. Its organizing idea is a separation between _values_ and _computational obligations_: the value a computation produces is kept distinct from the obligations its evaluation incurs, so that a strong value space can be maintained under an honest signature.
+We now develop the calculus sketched in the introduction. Its organizing idea is a separation between *values* and *computational obligations*: the value a computation produces is kept distinct from the obligations its evaluation incurs, so that a strong value space can be maintained under an honest signature.
 
-The chapter proceeds in six steps. Section 2.1 fixes the result domain into which evaluation lands, together with the small-step reduction relation — equipped with a fuel discipline — on which the later metatheory depends. Section 2.2 introduces _dispositions_, the small algebra that governs which computational phenomena may co-occur. Section 2.3 characterizes witnesses and the obligations they expose, distinguishing the stateful witness from the nominal obligation. Section 2.4 gives the introduction forms through which obligations enter the linear context, and connects the semantic account of obligations to their syntactic bookkeeping. Section 2.5 gives the discharge rules through which obligations are consumed. Section 2.6 states the metatheory, culminating in the honesty theorem.
+The chapter proceeds in five steps. Section 2.1 fixes the result domain into which evaluation lands, together with the small-step reduction relation — equipped with a fuel discipline — on which the metatheory of Chapter 3 depends. Section 2.2 introduces *dispositions*, the small algebra that governs which computational phenomena may co-occur. Section 2.3 characterizes witnesses and the obligations they expose, distinguishing the stateful witness from the nominal obligation. Section 2.4 gives the introduction forms through which obligations enter the linear context, and connects the semantic account of obligations to their syntactic bookkeeping. Section 2.5 gives the discharge rules through which obligations are consumed. The metatheory these definitions support — culminating in the honesty theorem — is developed separately in Chapter 3.
 
 ## 2.1 Function evaluation, the result domain, and reduction
 
@@ -14,7 +14,9 @@ $$
 A \;\xrightarrow{\;\mathrm{select}_f\;}\; B_f \;\xrightarrow{\;\mathrm{eval}\;}\; R.
 $$
 
-The selection stage captures the control-flow structure of $f$: for an input $a \in A$, $\mathrm{select}_f$ identifies the branch $b \in B_f$ whose execution $a$ determines. The evaluation stage then reduces $b$ to an element of the _result domain_ $R$.
+The selection stage captures the control-flow structure of $f$: for an input $a \in A$, $\mathrm{select}_f$ identifies the branch $b \in B_f$ whose execution $a$ determines. Concretely, $\mathrm{select}_f$ is the language's match construct, written `|>`, which dispatches over the arms of $f$ by matching the scrutinee along whichever axis its arms use — *truthiness*, *structure*, *content*, or *morphology*. Binary decision is the degenerate case rather than a separate primitive: Tacet has no boolean atom, only Church booleans, the total selectors $\mathsf{true} = x\,y \mapsto x$ and $\mathsf{false} = x\,y \mapsto y$, and a two-arm truthiness match is exactly such a selector applied to its arms.
+
+Selection is *total and obligation-free by construction*. Matching only chooses an arm; it never itself raises, and — because a Church boolean is a total value in $V$ — the decision axis lives wholly inside the value space. There is no implicit "non-exhaustive match" failure: if no arm should produce a value, the programmer writes that arm explicitly as $\mathsf{tacet}$, so even the gap in a match is a disclosed obligation rather than a silent error. Every obligation in the system therefore enters through introduction (Section 2.4), never through branch selection. The evaluation stage then reduces the chosen branch $b$ to an element of the *result domain* $R$.
 
 The inclusion of $B_f$ into the general branch universe,
 
@@ -32,7 +34,7 @@ $$
 R \;=\; V \;\uplus\; W .
 $$
 
-Here $V$ is the domain of ordinary language values and $W$ is the domain of witnesses produced during evaluation. The disjointness is deliberate: a witness is not a language value and cannot be used interchangeably with an element of $V$. Ordinary evaluation has the form $b \mapsto v \in V$, while evaluation may instead produce a witness, $b \mapsto w \in W$. Thus $R$ is the complete range of branch-evaluation outcomes, and $V$ is the sub-range consisting of ordinary values.
+Here $V$ is the domain of ordinary language values and $W$ is the domain of witnessed outcomes — obligation-bearing results, each carrying a witness type. The disjointness is deliberate: a witnessed outcome is not a language value and cannot be used interchangeably with an element of $V$. Ordinary evaluation has the form $b \mapsto v \in V$, while a branch that leaves an obligation has the form $b \mapsto w \in W$. Thus $R$ is the complete range of branch-evaluation outcomes, and $V$ is the sub-range consisting of ordinary values.
 
 The value domain is moreover kept apart from the bottom element,
 
@@ -40,11 +42,11 @@ $$
 \bot \notin V .
 $$
 
-Bottom is not an ordinary value and is never produced as the outcome of a successful evaluation. This matters because the semantics does not model the phenomena carried by witnesses as ordinary bottom-valued computation; such phenomena are represented explicitly, as elements of $W$ (Section 2.3). We will shortly strengthen $\bot \notin V$ to $\bot \notin R$ for the default evaluation regime.
+Bottom is not an ordinary value and is never produced as the outcome of a successful evaluation. In particular there is no null, none, or nothing inhabiting any value type: absence is never a value but a $\mathsf{Reify}$ obligation, reached only through $\mathsf{tacet}$ (Section 2.4). This matters because the semantics does not model the phenomena carried by witnesses as ordinary bottom-valued computation; such phenomena are represented explicitly, as elements of $W$ (Section 2.3). We will shortly strengthen $\bot \notin V$ to $\bot \notin R$, which holds unconditionally, in every evaluation regime.
 
 ### Reduction with fuel
 
-To state progress, preservation, and — above all — honesty, we need a reduction relation to reason about, not merely the input–output map $\mathrm{eval}$. We equip evaluation with a _fuel_ budget that bounds the depth of self-referential computation.
+To state progress, preservation, and — above all — honesty, we need a reduction relation to reason about, not merely the input–output map $\mathrm{eval}$. We equip evaluation with a *fuel* budget that bounds the depth of self-referential computation.
 
 A **configuration** is a pair $\langle e, \varphi \rangle$ consisting of an expression $e$ and a fuel value
 
@@ -54,22 +56,22 @@ $$
 
 Reduction is a relation $\langle e, \varphi \rangle \to \langle e', \varphi' \rangle$ on configurations, governed by two disciplines.
 
-**(Fuel.)** The two reduction forms that can recur without structurally shrinking the expression — the unfolding of a recursive call and the deferral of an obligation (Section 2.5) — each draw one unit of fuel:
+**(Fuel.)** The two reduction forms that can recur without structurally shrinking the expression — the unfolding of a recursive call and the deferral reifier $\mathsf{reify}_L$ (Section 2.5) — each draw one unit of fuel:
 
 $$
 \frac{\varphi > 0}{\langle \mathcal{R}[e],\, \varphi \rangle \to \langle \mathcal{R}'[e],\, \varphi - 1 \rangle}
 \qquad(\text{recursion / defer}),
 $$
 
-with the convention $\infty - 1 = \infty$. When such a redex is reached at $\varphi = 0$, it does not become stuck and does not diverge; it reduces instead to a witness of kind $\mathsf{Unbounded}$ (Section 2.2), recording that the budget was exhausted:
+with the convention $\infty - 1 = \infty$. When such a redex is reached at $\varphi = 0$, it does not become stuck and does not diverge; it introduces a $\mathsf{Bound}$ obligation — the obligation of an $\mathsf{Unbounded}$ witness (Section 2.2) — recording that the budget was exhausted:
 
 $$
-\frac{}{\langle \mathcal{R}[e],\, 0 \rangle \to \langle \mathsf{witness}_{\mathsf{Unbounded}},\, 0 \rangle}.
+\frac{}{\langle \mathcal{R}[e],\, 0 \rangle \to \langle \mathsf{obl}_{\mathsf{Bound}},\, 0 \rangle}.
 $$
 
 Every other reduction step leaves the fuel value unchanged.
 
-**(Capability.)** A function evaluates with $\varphi = \infty$ if and only if it declares the $\mathsf{Unbounded!}$ capability in its signature; otherwise it evaluates with a finite budget $\varphi \in \mathbb{N}$. Thus the two regimes are one relation at two fuel settings, and the capability reads semantically as the lifting of the fuel bound. Because $\mathsf{Unbounded!}$ is recorded in the signature, the choice of regime is disclosed to every caller.
+**(Capability.)** A function evaluates with $\varphi = \infty$ if and only if it declares the $\mathsf{Unbounded}^{-}$ capability in its signature; otherwise it evaluates with a finite budget $\varphi \in \mathbb{N}$. Thus the two regimes are one relation at two fuel settings, and the capability reads semantically as the lifting of the fuel bound. Because $\mathsf{Unbounded}^{-}$ is recorded in the signature, the choice of regime is disclosed to every caller.
 
 ### Boundedness and totality
 
@@ -79,11 +81,11 @@ $$
 \bot \notin R,
 $$
 
-unconditionally, in either fuel regime. Tacet does not model non-termination as a value; what the two regimes differ in is only whether reduction is _guaranteed to halt_.
+unconditionally, in either fuel regime. Tacet does not model non-termination as a value; what the two regimes differ in is only whether reduction is *guaranteed to halt*.
 
-In the default regime, $\varphi \in \mathbb{N}$ is finite. Because recursion and deferral strictly decrease $\varphi$ and every other step leaves it fixed, no configuration admits an infinite reduction sequence: fuel exhaustion converts would-be divergence into a finite reduction ending in an $\mathsf{Unbounded}$ witness. Evaluation therefore always halts, $\mathrm{eval}$ is _total_ on $B_f$, and every branch reduces to some element of $R$. The fuel-exhaustion witness is not $\bot$; it is an ordinary $\mathsf{Unbounded}$ witness in $W$. Like every witness that exposes an obligation, it is discharged through the single reification API (Section 2.5); its _default resolution_, $\mathsf{Bound}$, is precisely the fuel discipline just described. Section 2.2 fixes these per-kind default resolutions, and Section 2.5 the uniform reifiers that can override them.
+In the default regime, $\varphi \in \mathbb{N}$ is finite. Because recursion and deferral strictly decrease $\varphi$ and every other step leaves it fixed, no configuration admits an infinite reduction sequence: fuel exhaustion converts would-be divergence into a finite reduction ending in a $\mathsf{Bound}$ obligation. Evaluation therefore always halts, $\mathrm{eval}$ is *total* on $B_f$, and every branch reduces to some element of $R$. The fuel-exhaustion outcome is not $\bot$; it is an ordinary $\mathsf{Bound}$ obligation, typed as an $\mathsf{Unbounded}$ witness in $W$. Like every obligation, it is discharged through the single reification API (Section 2.5); its *default resolution*, $\mathsf{Bound}$, is precisely the fuel discipline just described. Section 2.2 fixes these per-kind default resolutions, and Section 2.5 the uniform reifiers that can override them.
 
-In the renounced regime, $\varphi = \infty$, the fuel argument no longer forces termination, and reduction of such a branch may continue without end. This does _not_ reintroduce $\bot$. The possibility of non-termination is disclosed by the $\mathsf{Unbounded!}$ capability in the signature; when such a computation does halt, its result is absorbed into $\mathsf{Total}$ — an ordinary value — leaving no residual witness or obligation. A computation that fails to halt produces no semantic value at all, but it produces no bottom either: $\bot$ remains outside $R$, and the risk it runs is exactly the one its capability announced. This is the governing principle in its sharpest form: honesty is the _disclosure of the risk_, never the production of $\bot$.
+In the renounced regime, $\varphi = \infty$, the fuel argument no longer forces termination, and reduction of such a branch may continue without end. This does *not* reintroduce $\bot$. The possibility of non-termination is disclosed by the $\mathsf{Unbounded}^{-}$ capability in the signature; when such a computation does halt, its result is absorbed into $\mathsf{Total}$ — an ordinary value — leaving no residual witness or obligation. A computation that fails to halt produces no semantic value at all, but it produces no bottom either: $\bot$ remains outside $R$, and the risk it runs is exactly the one its capability announced. This is the governing principle in its sharpest form: honesty is the *disclosure of the risk*, never the production of $\bot$.
 
 The overall shape of function evaluation is summarized in Figure 2.1; the internal structure of $V$ and $W$ indicated there is developed in the sections that follow.
 
@@ -97,33 +99,35 @@ The overall shape of function evaluation is summarized in Figure 2.1; the intern
                R  =  V  ⊎  W                       (⊥ ∉ R, unconditionally)
                      │      │
                      ▼      ▼
-                   values  witnesses         (non-termination under Unbounded!
+                   values  witnesses         (non-termination under Unbounded⁻
                                               is a disclosed risk, not a value)
 ```
 
-_Figure 2.1._ Function evaluation. An input selects a branch from $B_f$, which evaluates to an element of the result domain $R = V \uplus W$; bottom is never an element of $R$. In the default (finite-fuel) regime evaluation is guaranteed to halt. Declaring $\mathsf{Unbounded!}$ sets $\varphi = \infty$: reduction may then run without end, but that possibility is disclosed by the capability, and any value it does produce is absorbed into $\mathsf{Total}$ — never a bottom value. The internal structure of $V$ and $W$ is developed in Sections 2.2–2.3.
+*Figure 2.1.* Function evaluation. An input selects a branch from $B_f$, which evaluates to an element of the result domain $R = V \uplus W$; bottom is never an element of $R$. In the default (finite-fuel) regime evaluation is guaranteed to halt. Declaring $\mathsf{Unbounded}^{-}$ sets $\varphi = \infty$: reduction may then run without end, but that possibility is disclosed by the capability, and any value it does produce is absorbed into $\mathsf{Total}$ — never a bottom value. The internal structure of $V$ and $W$ is developed in Sections 2.2–2.3.
 
 ## 2.2 Dispositions and their composition
 
 ### The disposition of an outcome
 
-The partition of the result domain in Section 2.1 is not primitive; it is induced by the _disposition_ of a branch evaluation — the collection of computational phenomena its evaluation realizes. The default disposition is $\mathsf{Total}$: a branch that realizes no phenomenon beyond producing a value is $\mathsf{Total}$, and its outcome is an ordinary value in $V$. $\mathsf{Total}$ is the identity disposition — the absence of any witnessed phenomenon.
+The partition of the result domain in Section 2.1 is not primitive; it is induced by the *disposition* of a branch evaluation — the collection of computational phenomena its evaluation realizes. The default disposition is $\mathsf{Total}$: a branch that realizes no phenomenon beyond producing a value is $\mathsf{Total}$, and its outcome is an ordinary value in $V$. $\mathsf{Total}$ is the identity disposition — the absence of any witnessed phenomenon. Its canonical inhabitants are the Church booleans $\mathsf{true} = x\,y \mapsto x$ and $\mathsf{false} = x\,y \mapsto y$: total functions that select between two values already held, raising nothing. The *decision* axis of the language thus lives wholly in $V$ as $\mathsf{Total}$ values, disjoint from the *absence* axis, which lives wholly in $L$ and is reached only through $\mathsf{tacet}$; the two are never conflated in a single degenerate inhabitant.
 
-When evaluation realizes a phenomenon that is not an ordinary value — a possible failure, an unbounded recursion, an asynchronous wait, an intrinsically infinite loop — the branch acquires a corresponding _witness kind_. The linear kinds are
+When evaluation realizes a phenomenon that is not an ordinary value — a possible failure, an unbounded recursion, an asynchronous wait, an intrinsically infinite loop — the branch acquires a corresponding *witness kind*. The linear kinds are
 
 $$
 \mathcal{K}_L \;=\; \{\, \mathsf{Partial},\ \mathsf{Unbounded},\ \mathsf{Awaited},\ \mathsf{Loop} \,\}.
 $$
 
-Each linear kind, when realized, causes its witness to _expose_ a named obligation:
+This set is closed and exhaustive. Its four kinds are the orthogonal axes along which a computation can depart from producing a value — *partiality*, *boundedness*, *effectfulness*, and *loop productivity* — and no further axis inhabits the space. The metatheory of Chapter 3 is defined over exactly these four.
 
-| Witness     | Exposes | Domain |
-| ----------- | ------- | ------ |
-| `Total`     | —       | `V`    |
-| `Partial`   | `Reify` | `W_L`  |
-| `Unbounded` | `Bound` | `W_L`  |
-| `Awaited`   | `Sync`  | `W_L`  |
-| `Loop`      | `Break` | `W_L`  |
+Each linear kind, when realized, causes its witness to *expose* a named obligation:
+
+| Witness | Exposes | Domain |
+|---|---|---|
+| `Total`       | —        | `V`   |
+| `Partial`     | `Reify`  | `W_L` |
+| `Unbounded`   | `Bound`  | `W_L` |
+| `Awaited`     | `Sync`   | `W_L` |
+| `Loop`        | `Break`  | `W_L` |
 
 The obligation's name is its entire content. Consistent with the thin-obligation ontology of Section 2.3, a $\mathsf{Bound}$ obligation records nothing but the nominal fact that an unboundedness occurred and must be answered; a $\mathsf{Reify}$ obligation, that a partiality occurred; and so on. $\mathsf{Total}$ exposes nothing, because it is already a value.
 
@@ -131,15 +135,15 @@ The partition of Section 2.1 now reads off the disposition. A $\mathsf{Total}$ b
 
 ### Renunciation
 
-Two of the linear kinds admit a _renounced_ form, written with a bang:
+Two of the linear kinds admit a *renounced* form, written with a superscript minus — the witness with its obligation removed:
 
 $$
-\mathsf{Unbounded!} \qquad \mathsf{Awaited!}
+\mathsf{Unbounded}^{-} \qquad \mathsf{Awaited}^{-}
 $$
 
-Renunciation removes the phenomenon from the linear domain entirely. Rather than exposing an obligation, a renounced phenomenon is _absorbed into_ $\mathsf{Total}$ after evaluation: an $\mathsf{Unbounded!}$ recursion that halts, or an $\mathsf{Awaited!}$ effect that is launched, resolves to an ordinary value and leaves no witness behind. The phenomenon is not answered but _accepted_, and the acceptance is disclosed as a capability in the function's signature (Section 2.1).
+Renunciation removes the phenomenon from the linear domain entirely. Rather than exposing an obligation, a renounced phenomenon is *absorbed into* $\mathsf{Total}$ after evaluation: an $\mathsf{Unbounded}^{-}$ recursion that halts, or an $\mathsf{Awaited}^{-}$ effect that is launched, resolves to an ordinary value and leaves no witness behind. The phenomenon is not answered but *accepted*, and the acceptance is disclosed as a capability in the function's signature (Section 2.1).
 
-Because a renounced form is thus the identity disposition, it composes trivially, and no admissibility question arises. A computation that is both failable and renounced-unbounded has disposition $\{\mathsf{Partial}\} \otimes \mathsf{Total} = \{\mathsf{Partial}\}$; the renounced axis contributes nothing. This is why the exclusions of the composition algebra (below) constrain only _live_ linear kinds — the pairs $\{\mathsf{Unbounded}, \mathsf{Awaited}\}$ and the like — and never a renounced form, which is already $\mathsf{Total}$.
+Because a renounced form is thus the identity disposition, it composes trivially, and no admissibility question arises. A computation that is both failable and renounced-unbounded has disposition $\{\mathsf{Partial}\} \otimes \mathsf{Total} = \{\mathsf{Partial}\}$; the renounced axis contributes nothing. This is why the exclusions of the composition algebra (below) constrain only *live* linear kinds — the pairs $\{\mathsf{Unbounded}, \mathsf{Awaited}\}$ and the like — and never a renounced form, which is already $\mathsf{Total}$.
 
 Renunciation is available only for $\mathsf{Unbounded}$ and $\mathsf{Awaited}$ — the phenomena whose obligation one may legitimately decline: an unbounded recursion may be allowed to run, and an asynchronous effect may be launched without awaiting it (the fire-and-forget sink). Partiality and looping have no renounced form. A failure must be answered and a productive loop must be broken, so $\mathsf{Reify}$ and $\mathsf{Break}$ obligations cannot be declined — only discharged.
 
@@ -147,21 +151,21 @@ Renunciation is available only for $\mathsf{Unbounded}$ and $\mathsf{Awaited}$ �
 
 Three kinds bear on non-termination, and all three obey the principle that Tacet produces no bottom (Section 2.1); they differ only in how the possibility of non-termination is accounted for.
 
-- $\mathsf{Unbounded}$ is fuel-bounded by default. Evaluation is guaranteed to halt; on budget exhaustion the witness exposes a $\mathsf{Bound}$ obligation. No unbounded run occurs.
-- $\mathsf{Unbounded!}$ renounces the bound. Evaluation may run without end, disclosed by the capability; any value it does produce is absorbed into $\mathsf{Total}$, and non-termination is never a bottom value.
-- $\mathsf{Loop}$ exposes a $\mathsf{Break}$ obligation. A loop is intrinsically infinite: it does not draw on the fuel budget, and it iterates productively until its $\mathsf{Break}$ obligation is discharged. Uniquely among the kinds, a $\mathsf{Break}$ is discharged _out-of-band_ — by an explicit break originating outside the loop body, either an interrupt ($\mathtt{Ctrl}$-$\mathtt{C}$) or a call to a breaking function — rather than within the forward flow of evaluation. Until that break lands the branch does not complete; a loop never broken runs productively forever. This is not bottom: the branch simply never yields a value, and the $\mathsf{Break}$ obligation discloses, statically, that completion is contingent on an explicit break.
+- $\mathsf{Unbounded}$ is fuel-bounded by default. Evaluation is guaranteed to halt; on budget exhaustion it introduces its $\mathsf{Bound}$ obligation. No unbounded run occurs.
+- $\mathsf{Unbounded}^{-}$ renounces the bound. Evaluation may run without end, disclosed by the capability; any value it does produce is absorbed into $\mathsf{Total}$, and non-termination is never a bottom value.
+- $\mathsf{Loop}$ exposes a $\mathsf{Break}$ obligation. A loop is intrinsically infinite: it does not draw on the fuel budget (a fuel-limited loop could not run forever, which would defeat the purpose of a productive one), and it iterates productively until its $\mathsf{Break}$ obligation is discharged. Uniquely among the kinds, a $\mathsf{Break}$ is discharged *out-of-band* — by an explicit break originating outside the loop body, either an interrupt ($\mathtt{Ctrl}$-$\mathtt{C}$) or a call to a breaking function — rather than within the forward flow of evaluation. Until that break lands the branch does not complete; a loop never broken runs productively forever. This is not bottom: the branch simply never yields a value, and the $\mathsf{Break}$ obligation discloses, statically, that completion is contingent on an explicit break.
 
 In every case the possibility of non-termination is reified — as a fuel bound, a renounced capability, or a $\mathsf{Break}$ obligation — and never as an element of $R$.
 
 ### Composition
 
-Dispositions compose. A single computation may realize several phenomena at once — an asynchronous computation that can also fail, say — so its disposition is in general a _set_ of linear kinds. Composition is orthogonal: writing a branch's disposition as $S \subseteq \mathcal{K}_L$, the disposition algebra is
+Dispositions compose. A single computation may realize several phenomena at once — an asynchronous computation that can also fail, say — so its disposition is in general a *set* of linear kinds. Composition is orthogonal: writing a branch's disposition as $S \subseteq \mathcal{K}_L$, the disposition algebra is
 
 $$
 (\mathcal{D},\ \otimes,\ \mathsf{Total}), \qquad \mathsf{Total} = \varnothing, \qquad S \otimes S' = S \cup S',
 $$
 
-a commutative, associative, idempotent operation with $\mathsf{Total}$ as identity — a bounded join-semilattice — made _partial_ by the fact that not every combination is admissible.
+a commutative, associative, idempotent operation with $\mathsf{Total}$ as identity — a bounded join-semilattice — made *partial* by the fact that not every combination is admissible.
 
 The inadmissible combinations are exactly the four pairs
 
@@ -172,7 +176,7 @@ $$
 \{\mathsf{Unbounded}, \mathsf{Awaited}\}.
 $$
 
-Admissibility is determined entirely by pairs and is downward closed, so the admissible dispositions are exactly the _cliques_ of the compatibility graph $G$ whose edges are the surviving pairs:
+Admissibility is determined entirely by pairs and is downward closed, so the admissible dispositions are exactly the *cliques* of the compatibility graph $G$ whose edges are the surviving pairs:
 
 ```
         Unbounded          Awaited
@@ -211,15 +215,15 @@ Sections 2.1 and 2.2 have spoken of witnesses and of the obligations they expose
 
 ### Thick witnesses, thin obligations
 
-A **witness** is _thick_. It is produced from inside a computation and captures the evaluation state at the point of witnessing. In particular it carries two things: the payload type $T$ of the value that was expected, and the disposition $S \subseteq \mathcal{K}_L$ — the face recording which phenomena it realizes. Its type is accordingly indexed by both,
+A **witness** is *thick*. It is a *type*: the type carried by an obligation-bearing occurrence, recording everything statically known about it. It carries two things — the payload type $T$ of the value that was expected, and the disposition $S \subseteq \mathcal{K}_L$, the face recording which phenomena the occurrence realizes — so its type is indexed by both,
 
 $$
 \mathsf{Witness}_S(T),
 $$
 
-and is fully determined at the moment of production, because the state that determines it is present there. A witness knows what it is.
+and is fixed at the point where the obligation is introduced, because the state that determines it is present there. A witness type knows what it is. It is what appears in a function's contract, at a call boundary, and as the annotation on an occurrence in $\Delta$; it is never a separate runtime object floating alongside the value.
 
-An **obligation** is _thin_. It carries no payload and no state; its entire content is its own identity. An obligation is a _signal_ — a nominal token whose message is simply that a computation has left the value space at a definite point and must be brought back. The obligation exposed by a $\mathsf{Partial}$ witness is a $\mathsf{Reify}$ obligation, that exposed by an $\mathsf{Unbounded}$ witness a $\mathsf{Bound}$ obligation, and so on; the name _is_ the meaning. Nothing about the recovered value's type lives in the obligation — that lives in the witness.
+An **obligation** is *thin*. It carries no payload and no state; its entire content is its own identity. An obligation is a *signal* — a nominal token whose message is simply that a computation has left the value space at a definite point and must be brought back. The obligation exposed by a $\mathsf{Partial}$ witness is a $\mathsf{Reify}$ obligation, that exposed by an $\mathsf{Unbounded}$ witness a $\mathsf{Bound}$ obligation, and so on; the name *is* the meaning. Nothing about the recovered value's type lives in the obligation — that lives in the witness.
 
 The two are bridged by exposure, and the direction of the asymmetry is exactly that a thick witness gives rise to thin obligations, never the reverse.
 
@@ -237,67 +241,58 @@ For a witness of singleton disposition — say $S = \{\mathsf{Partial}\}$ — th
 
 ### Occurrences, not names: the Grothendieck reading of $L_f$
 
-The obligations of a function are collected across its branches. For each branch $b \in B_f$, let $\mathrm{obligations}(b)$ denote the occurrences arising in $b$ — the union of $\mathrm{expose}(w)$ over the witnesses $w$ produced there. The obligations of $f$ are then the disjoint union
+The obligations of a function are collected across its branches. For each branch $b \in B_f$, let $\mathrm{obligations}(b)$ denote the occurrences arising in $b$ — those `tacet` introduces directly, together with those exposed by any witness types received at a call within $b$. The obligations of $f$ are then the disjoint union
 
 $$
 L_f \;=\; \coprod_{b \in B_f} \mathrm{obligations}(b).
 $$
 
-The disjoint union is doing real work: $L_f$ tracks _occurrences_, not the distinct obligation names that occur. This is the total space of the family $\mathrm{obligations} : B_f \to \mathbf{Set}$ — its Grothendieck construction $\int \mathrm{obligations}$ — whose elements are pairs $(b, l)$ of a branch and an occurrence within it. It comes with two canonical maps:
+The disjoint union is doing real work: $L_f$ tracks *occurrences*, not the distinct obligation names that occur. This is the total space of the family $\mathrm{obligations} : B_f \to \mathbf{Set}$ — its Grothendieck construction $\int \mathrm{obligations}$ — whose elements are pairs $(b, l)$ of a branch and an occurrence within it. It comes with two canonical maps:
 
 $$
 B_f \;\xleftarrow{\;\pi\;}\; L_f \;\xrightarrow{\;\mathrm{name}\;}\; L,
 $$
 
-the fibration $\pi$ recording _which branch_ an occurrence arose in, and the naming map $\mathrm{name}$ recording _which_ underlying obligation it is an occurrence of, within the universe $L$ of all obligations.
+the fibration $\pi$ recording *which branch* an occurrence arose in, and the naming map $\mathrm{name}$ recording *which* underlying obligation it is an occurrence of, within the universe $L$ of all obligations.
 
 The point of the construction is that $\mathrm{name}$ need not be injective. If two distinct branches $b_1, b_2 \in B_f$ each raise an occurrence of the same underlying obligation $l \in L$, those occurrences are nevertheless distinct elements of $L_f$ — distinguished by their fibres under $\pi$ — even though $\mathrm{name}$ identifies them in $L$. Branch structure is thereby preserved when the obligations of a function are collected, and this is exactly why $L_f$ is associated with the function while $L$ is the universe: $L$ describes the possible obligation names, whereas $L_f$ records the particular occurrences the branches of $f$ induce. (The original presentation wrote $L_f \hookrightarrow L$; the inclusion is too strong, since it would force distinct occurrences of one name to collapse. The correct arrow is the generally non-injective $\mathrm{name} : L_f \to L$.)
 
 ### The linear context, by inheritance
 
-The bridge to the syntactic bookkeeping of Section 2.5 is now short. The linear context $\Delta$ tracks occurrences of $L_f$, and an entry $l : \mathsf{Witness}(T)$ in $\Delta$ does not assert that the obligation _is_ a witness. It records the occurrence $l$ together with the payload type $T$ _inherited from the witness that exposed it_ — so that a reifier knows the type of the value its handler will receive. The obligation contributes its identity through $\mathrm{name}$; the witness contributes the type through $\mathrm{expose}$. There is no tension between the semantic separation of $W_L$ from $L_f$ and the syntactic annotation of occurrences with witness types: the annotation is simply the image of a witness under $\mathrm{expose}$, read together with the witness's own payload.
+The bridge to the syntactic bookkeeping of Section 2.5 is now short. The linear context $\Delta$ tracks occurrences of $L_f$, and an entry $l : \mathsf{Witness}(T)$ in $\Delta$ does not assert that the obligation *is* a witness. It records the occurrence $l$ together with the payload type $T$ *inherited from the witness that exposed it* — so that a reifier knows the type of the value its handler will receive. The obligation contributes its identity through $\mathrm{name}$; the witness contributes the type through $\mathrm{expose}$. There is no tension between the semantic separation of $W_L$ from $L_f$ and the syntactic annotation of occurrences with witness types: the annotation is simply the image of a witness under $\mathrm{expose}$, read together with the witness's own payload.
 
 ### The force of a dropped obligation
 
-An obligation's message is: _rectify here, or produce no value._ In Tacet the second alternative is not a silent $\bot$ but an explicit, terminal, loudly surfaced failure. This is the semantic force behind treating obligations linearly. An unconsumed obligation cannot decay into a quiet default, because its only alternative to being discharged is a visible error — never a bottom, and never an implicit fallback. The linear discipline of Section 2.5, and the Global Branch Totality it enforces, is precisely the static guarantee that a well-typed branch never reaches that alternative: every occurrence in $L_f$ that a branch raises is, in well-typed code, discharged before the branch completes.
+An obligation's message is: *rectify here, or produce no value.* In Tacet the second alternative is not a silent $\bot$ but an explicit, terminal, loudly surfaced failure. This is the semantic force behind treating obligations linearly. An unconsumed obligation cannot decay into a quiet default, because its only alternative to being discharged is a visible error — never a bottom, and never an implicit fallback. The linear discipline of Section 2.5, and the Global Branch Totality it enforces, is precisely the static guarantee that a well-typed branch never reaches that alternative: every occurrence in $L_f$ that a branch raises is, in well-typed code, discharged before the branch completes.
 
 ## 2.4 Introduction
 
-Section 2.3 characterized obligations and the domain $L_f$ that collects them, but not how an obligation comes to be there in the first place. This section gives the _introduction_ forms — the constructs through which a witness is raised and its obligations enter the linear context — and connects the semantic collection $L_f$ to the syntactic context $\Delta$ that the discharge rules of Section 2.5 will consume.
+Section 2.3 characterized obligations and the domain $L_f$ that collects them, but not how an obligation comes to be there in the first place. This section gives the *introduction* forms — the constructs through which a witness is raised and its obligations enter the linear context — and connects the semantic collection $L_f$ to the syntactic context $\Delta$ that the discharge rules of Section 2.5 will consume.
 
-### The `tacet` construct
+### Symbols, and `tacet` as obligation introduction
 
-Linear obligations are not values the language produces directly. The language instead offers the `tacet` construct as the syntactic means by which a computation raises a $\mathsf{Partial}$ witness deliberately.
+Obligations are not values: they live in $L$, outside the value space entirely, and so cannot be named, passed, or matched on directly in code. To let a program *refer* to an obligation without ever *holding* one, the language provides value-level proxies. A **symbol** is such a proxy — a value that stands in for an obligation as its avatar, carrying only the obligation's semantic meaning and none of its linear substance. A **symbol-construct** is a set of symbols. Symbols are what code manipulates; the obligations they name stay in $L$.
 
-Tags form a distinguished class of values, and among them a subclass admits interpretation by `tacet`:
+A symbol-construct is a signal to the type interpreter, which reads it as a type-level operation against $\Gamma$ or $\Delta$: a check on values, a declaration of witnesses, or the production of an obligation. Symbol-constructs serve several roles in the language; module loading and creation ($\mathsf{Load}$, $\mathsf{Module}$) are introduced in a later chapter. Here we are concerned with the two that bear on obligations: the `tacet` keyword, which *introduces* obligations, and the function contract, which *declares* witnesses.
 
-$$
-V_{T} \hookrightarrow V, \qquad V_{Te} \hookrightarrow V_{T}.
-$$
+The `tacet` keyword is the most universal of the obligation-introducing rules, because it is simply the introduction written directly in the code. Applied to a symbol-construct, `tacet` signals that the branch produces the linear obligation the symbols name, and introduces that obligation into $\Delta$. It can introduce *any* obligation the language admits, with a single exception: it cannot introduce $\mathsf{Break}$. A $\mathsf{Break}$ is never raised by code — it is produced solely by a decision the user makes while the computation runs, an interrupt or a call to a breaking function — so no symbol introduces it. Every other obligation is within `tacet`'s reach.
 
-During evaluation, a `tacet` expression whose tag lies in $V_{Te}$ is interpreted as a $\mathsf{Partial}$ witness:
+The essential discipline is that `tacet` lands **purely in $L$**. It consumes a symbol — a value — and emits an obligation, which is not a value; the symbol is the avatar that carries the semantic meaning across this boundary, leaving the obligation itself wholly outside the value world. `tacet` never produces a witness. What it does do, beyond depositing the obligation in $\Delta$, is *force an implicit witness in the contract*: a branch that raises an obligation via `tacet` obliges the function's contract to carry the corresponding witness (below). Witnesses ($W$) thus remain the concern of the interface, obligations ($L$) the concern of the body, and `expose` (Section 2.3) is the map between them at the call boundary — the two domains never merge, which is exactly why they are kept separate. Writing the elaboration with a squiggle, to mark that it is not an ordinary semantic morphism,
 
 $$
-\mathsf{tacet} : V_{Te} \rightsquigarrow W_L.
+\mathsf{tacet} : \mathrm{Sym} \rightsquigarrow L_f,
 $$
 
-The squiggle is deliberate. `tacet` is not an ordinary semantic morphism from values to witnesses; it is an _elaboration_ step — the interpretation of a syntactic construct during evaluation. We do not compose across it as though it were a morphism in the semantic category. Everything downstream of the witness it produces — `expose`, and the discharge maps of Section 2.5 — is an ordinary semantic map and composes normally. The full path from a tacet-able tag to an obligation is therefore
+we cross the value/obligation boundary exactly once, and nothing of $L$ leaks back into the value space.
 
-$$
-V_{Te} \;\rightsquigarrow\; W_L \;\xrightarrow{\;\mathrm{expose}\;}\; \mathcal{P}_{\mathrm{fin}}(L_f),
-$$
+### How each obligation arises
 
-with the elaboration boundary crossed exactly once, at the squiggle. This preserves the separation of the value domain from the obligation domain: $V_{Te} \subseteq V$ does not import $L$ into $V$. The tag remains a value; its interpretation produces a witness; and only the witness exposes the obligation.
+Each of the four obligations reaches the type system by its own route, and the routes are deliberately not uniform.
 
-### The four introduction sites
-
-`tacet` is the sole introducer of $\mathsf{Partial}$. The other three linear kinds are introduced by built-in language constructs, one apiece:
-
-- recursion introduces $\mathsf{Unbounded}$;
-- the dedicated asynchronous construct introduces $\mathsf{Awaited}$;
-- an intrinsically-infinite loop introduces $\mathsf{Loop}$.
-
-Write $\mathrm{intro}_\kappa$ for the corresponding form, so that $\mathrm{intro}_{\mathsf{Partial}}$ is `tacet`. Each raises a witness of its kind, which then exposes the obligation named for that kind (Section 2.2).
+- **$\mathsf{Reify}$** enters through `tacet` and through $\mathsf{reify}_L$ (Section 2.5): `tacet` raises it where a computation declares it may fail to produce a value, and $\mathsf{reify}_L$ threads it forward as the $\mathsf{Partial}$ successor of a deferral.
+- **$\mathsf{Bound}$** enters through `tacet` and through recursion under the fuel discipline (Section 2.1): budget exhaustion produces it, and a recursive computation that may not terminate carries it.
+- **$\mathsf{Sync}$** is a deliberate special case. It should be *completely transparent* to the user — Tacet does not want two colours of function, one synchronous and one not. Asynchrony is therefore expressed only by calling the language's primitive effectful functions, which are lifted into progressively richer effectful ones; the introduction rule for $\mathsf{Sync}$ is a function, not a keyword, and an asynchronous function is syntactically indistinguishable from a synchronous one.
+- **$\mathsf{Break}$** cannot be introduced in code at all. It is produced only by the user's runtime decision, so the $\mathsf{Loop}$ phenomenon it belongs to reaches the type system solely through the contract, as the next subsection explains.
 
 ### Introduction rules
 
@@ -305,23 +300,35 @@ An introduction deposits a fresh obligation occurrence into the linear context, 
 
 $$
 \textbf{(T-Intro}_\kappa\textbf{)}\qquad
-\frac{\;\Gamma; \Delta \vdash e : T \qquad \mathrm{kinds}(\Delta) \cup \{\kappa\} \in \mathcal{X} \qquad \kappa! \notin \mathrm{caps}(f)\;}
+\frac{\;\Gamma; \Delta \vdash e : T \qquad \mathrm{kinds}(\Delta) \cup \{\kappa\} \in \mathcal{X} \qquad \kappa^{-} \notin \mathrm{caps}(f)\;}
      {\;\Gamma;\ \Delta,\, l : \mathsf{Witness}(T) \vdash \mathrm{intro}_\kappa(e) : \mathsf{Witness}(T)\;}
 \quad (l\ \text{fresh})
 $$
 
-The admissibility premise is what makes the "impossible combinations" of Section 2.2 a typing fact rather than prose: an introduction that would leave the flag complex simply has no derivation. For $\kappa = \mathsf{Loop}$ it forces $\mathrm{kinds}(\Delta) = \varnothing$, since $\mathsf{Loop}$ composes with nothing — a loop cannot be introduced while any other obligation is live. The capability premise $\kappa! \notin \mathrm{caps}(f)$ is vacuous for the non-renounceable kinds $\mathsf{Partial}$ and $\mathsf{Loop}$, and selects the _live_ case for $\mathsf{Unbounded}$ and $\mathsf{Awaited}$; the renounced case is the following rule.
+The rule covers the obligations `tacet` can introduce — $\mathsf{Reify}$ and $\mathsf{Bound}$ directly, and $\mathsf{Sync}$ through the effectful primitives; $\mathsf{Break}$ has no introduction rule and enters only through the contract. The admissibility premise is what makes the "impossible combinations" of Section 2.2 a typing fact rather than prose: an introduction that would leave the flag complex simply has no derivation. The capability premise $\kappa^{-} \notin \mathrm{caps}(f)$ selects the *live* case for the renounceable kinds $\mathsf{Unbounded}$ and $\mathsf{Awaited}$; the renounced case is the following rule.
 
-When the corresponding capability is declared, the same introduction form is _transparent_: it raises no witness, touches no obligation, and its phenomenon is absorbed into $\mathsf{Total}$ (Section 2.2):
+When the corresponding capability is declared, the same introduction form is *transparent*: it raises no witness, touches no obligation, and its phenomenon is absorbed into $\mathsf{Total}$ (Section 2.2):
 
 $$
 \textbf{(T-Absorb}_\kappa\textbf{)}\qquad
-\frac{\;\Gamma; \Delta \vdash e : T \qquad \kappa! \in \mathrm{caps}(f)\;}
+\frac{\;\Gamma; \Delta \vdash e : T \qquad \kappa^{-} \in \mathrm{caps}(f)\;}
      {\;\Gamma; \Delta \vdash \mathrm{intro}_\kappa(e) : T'\;}
 \qquad \kappa \in \{\mathsf{Unbounded}, \mathsf{Awaited}\}.
 $$
 
-The result type $T'$ is $T$ for a renounced recursion ($\mathsf{Unbounded!}$), which yields the value it would have computed, and the trivial type for a renounced asynchronous launch ($\mathsf{Awaited!}$), which returns immediately as a fire-and-forget sink. The linear context is unchanged: renunciation adds nothing to $\Delta$, exactly as its status as the identity disposition requires. (The asynchronous construct and its precise typing remain to be fixed; the rule above records its shape.)
+The result type $T'$ is $T$ for a renounced recursion ($\mathsf{Unbounded}^{-}$ in the contract), which yields the value it would have computed, and the trivial type for a renounced asynchronous launch ($\mathsf{Awaited}^{-}$), which returns immediately as a fire-and-forget sink. The linear context is unchanged: renunciation adds nothing to $\Delta$, exactly as its status as the identity disposition requires. Because asynchrony enters only through primitive effectful functions, $\mathsf{Awaited}^{-}$ renounces the $\mathsf{Sync}$ obligation those primitives would otherwise raise.
+
+### The witness contract
+
+Where `tacet` introduces *obligations* in the body, a function's contract declares the *witnesses* it exposes in its interface. The two are the syntactic faces of the thick/thin distinction of Section 2.3: obligations are the thin occurrences that live in $\Delta$; witnesses are the thick objects the signature advertises. A declaration may append a symbol-construct after the return type,
+
+$$
+f : A \to \tau \;\; \kappa_1 \cdots \kappa_n ,
+$$
+
+naming the witnesses the body exposes. This contract is the function's set of capabilities, and $\mathrm{caps}(f)$ is the subset of renounced symbols within it — those written $\kappa^{-}$, a witness with its obligation removed. The contract must *comply with the body*: the witnesses it declares must match the obligations the branches raise, up to renunciation. Left empty, it is inferred — the function is linearly typed by the evaluation of its branches. The intent is to be *always explicit about obligations*, which the body's `tacet`s make unavoidable, while *opting in to witnesses*, which the contract makes a deliberate part of the interface, since the witness API is itself something the programmer defines.
+
+$\mathsf{Loop}$ is the one witness that can *only* be declared, never introduced. Because its $\mathsf{Break}$ cannot be raised in code, a loop reaches the type system solely by adding $\mathsf{Loop}$ to the contract, which must be made explicit and must comply with the function's main branch. This matches the isolation of $\mathsf{Loop}$ in the flag complex (Section 2.2): a loop stands alone as a witness, separated from every other, so a $\mathsf{Loop}$ contract admits no companion. Renunciation is declared the same way — $\mathsf{Unbounded}^{-}$ or $\mathsf{Awaited}^{-}$ in the contract absorbs the corresponding obligation into $\mathsf{Total}$ (Section 2.2), which is how a programmer opts into possible unboundedness or a fire-and-forget effect.
 
 ### The correspondence $L_f \leftrightarrow \Delta$
 
@@ -354,7 +361,7 @@ Sequential subterms — subterms both of which are evaluated — split the linea
 
 ### The three reifiers
 
-Whatever obligation a witness exposes, it is discharged by one of three reifiers, distinguished only by _where the result lands_:
+Whatever obligation a witness exposes, it is discharged by one of three reifiers, distinguished only by *where the result lands*:
 
 $$
 \mathsf{reify}_T : W \to V(T) \qquad
@@ -386,7 +393,7 @@ In each rule the witness $e_w$ carries an obligation $l \in \Delta_1$, and the h
 
 ### The type discipline of reification
 
-$\mathsf{reify}_T$ and $\mathsf{reify}_\forall$ differ not operationally but in the discipline they commit to, and the difference is deliberately visible in the syntax. $\mathsf{reify}_T$ is **type-preserving** (endomorphic): it obliges the handler to return a value in the witness's own type, so reification lands back in the domain the computation was expected to inhabit. $\mathsf{reify}_\forall$ is **type-transforming** (polymorphic): it permits projection into an arbitrary target $U$, allowing a branch to leave that domain. Although $\mathsf{reify}_T$ coincides with $\mathsf{reify}_\forall$ at $U := T$, the two are kept distinct precisely because their distinctness is _statically legible_.
+$\mathsf{reify}_T$ and $\mathsf{reify}_\forall$ differ not operationally but in the discipline they commit to, and the difference is deliberately visible in the syntax. $\mathsf{reify}_T$ is **type-preserving** (endomorphic): it obliges the handler to return a value in the witness's own type, so reification lands back in the domain the computation was expected to inhabit. $\mathsf{reify}_\forall$ is **type-transforming** (polymorphic): it permits projection into an arbitrary target $U$, allowing a branch to leave that domain. Although $\mathsf{reify}_T$ coincides with $\mathsf{reify}_\forall$ at $U := T$, the two are kept distinct precisely because their distinctness is *statically legible*.
 
 Call a branch **codomain-coherent** when all of its reifications are type-preserving, and **codomain-divergent** when it uses at least one type-transforming reification. This predicate is decidable by inspection of the discharge sites, and it measures how tightly a branch stays within the domain fixed by its structure. It feeds signature honesty directly: a function whose branches are all codomain-coherent has honest codomain $\tau$, whereas each $\mathsf{reify}_\forall$ site widens the honest codomain to include its escape type — and because the widening is marked by a distinct construct, the true codomain is statically recoverable rather than inferred. Type-preserving reification is the default that keeps a function within one declared codomain; type-transforming reification is the explicit, analyzable act of leaving it.
 
@@ -402,7 +409,7 @@ Two independent properties govern such a chain. **Local linearity** is a propert
 
 ### Additive branch combination
 
-The multiplicative split governs subterms that both execute. Alternatives are different: since $\mathrm{select}_f$ executes exactly one branch, the branches _share_ the incoming linear context and are each typed against it independently:
+The multiplicative split governs subterms that both execute. Alternatives are different: since $\mathrm{select}_f$ executes exactly one branch, the branches *share* the incoming linear context and are each typed against it independently:
 
 $$
 \textbf{(T-Branch)}\qquad
@@ -410,7 +417,7 @@ $$
      {\;\Gamma;\, \Delta \vdash \mathrm{select}_f : \tau\;}
 $$
 
-Each branch introduces and discharges its own occurrences internally, so no occurrence from one branch is ever live during another. The collected space $L_f = \coprod_{b} \mathrm{obligations}(b)$ is thus a _disjunction_ of admissible faces — one per branch — never their union. This is what forbids a function whose outcome space conflates disciplines the composition rules keep apart. Under multiplicative combination a function with an $\mathsf{Unbounded}$ branch and an $\mathsf{Awaited}$ branch would accumulate the inadmissible face $\{\mathsf{Unbounded}, \mathsf{Awaited}\}$ and fail to typecheck, though no single execution realizes both; additivity records each branch's disposition as an independent alternative, so a function may _span_ several maximal profiles across its branches while every individual outcome remains a single admissible face. Domain segregation is enforced at the granularity of branches, not smeared across them.
+Each branch introduces and discharges its own occurrences internally, so no occurrence from one branch is ever live during another. The collected space $L_f = \coprod_{b} \mathrm{obligations}(b)$ is thus a *disjunction* of admissible faces — one per branch — never their union. This is what forbids a function whose outcome space conflates disciplines the composition rules keep apart. Under multiplicative combination a function with an $\mathsf{Unbounded}$ branch and an $\mathsf{Awaited}$ branch would accumulate the inadmissible face $\{\mathsf{Unbounded}, \mathsf{Awaited}\}$ and fail to typecheck, though no single execution realizes both; additivity records each branch's disposition as an independent alternative, so a function may *span* several maximal profiles across its branches while every individual outcome remains a single admissible face. Domain segregation is enforced at the granularity of branches, not smeared across them.
 
 ### Summary of linear-context transformations
 
@@ -422,73 +429,6 @@ $$
 \end{aligned}
 $$
 
-Every obligation $l \in L_f$ is therefore either discharged into the value space $V$ or transformed into a successor obligation $l'$; none can be silently dropped. Together with the introduction rules of Section 2.4, these judgments establish the invariant that a well-typed branch drives its linear context to empty, which is the content of the metatheory to come.
+Every obligation $l \in L_f$ is therefore either discharged into the value space $V$ or transformed into a successor obligation $l'$; none can be silently dropped. Together with the introduction rules of Section 2.4, these judgments establish the invariant on which the whole calculus rests: a well-typed branch drives its linear context to empty.
 
-## 2.6 Metatheory
-
-We now state the properties that make the honesty claim precise. Statements are given in full; proofs are sketched, with the details deferred to a companion development. Throughout, reduction is the relation on configurations $\langle e, \varphi \rangle$ of Section 2.1, with recursion and $\mathsf{reify}_L$ the only fuel-drawing steps; $\mathsf{Loop}$ iteration does not draw fuel. We write $\mathrm{kinds}(\Delta)$ for the witness kinds live in $\Delta$, $\mathcal{X}$ for the flag complex of admissible dispositions (Section 2.2), and $\mathrm{caps}(e)$ for the capabilities declared in $e$'s signature.
-
-### Structural lemmas
-
-**Lemma 1 (Admissibility preservation).** _If $\Gamma; \Delta \vdash e : \tau$ with $\mathrm{kinds}(\Delta) \in \mathcal{X}$, and $\langle e, \varphi \rangle \to \langle e', \varphi' \rangle$, then $\Gamma; \Delta' \vdash e' : \tau$ with $\mathrm{kinds}(\Delta') \in \mathcal{X}$._
-
-_Proof sketch._ Introduction is the only rule that enlarges $\mathrm{kinds}(\Delta)$, and $\textbf{T-Intro}_\kappa$ fires only when $\mathrm{kinds}(\Delta) \cup \{\kappa\}$ is a face. Discharge by $\mathsf{reify}_T$ or $\mathsf{reify}_\forall$ only shrinks the live kinds; $\mathsf{reify}_L$ replaces an occurrence by a $\mathsf{Partial}$ successor, and $\mathsf{Partial}$ is compatible with every non-$\mathsf{Loop}$ face, so it never leaves $\mathcal{X}$. Hence reachable contexts stay admissible. $\qquad\blacksquare$
-
-**Lemma 2 (Strong normalization of the bounded, loop-free fragment).** _If $\cdot;\, \cdot \vdash e : \tau$ with $\mathrm{caps}(e) = \varnothing$ and $e$ contains no $\mathsf{Loop}$, then no infinite reduction issues from $\langle e, \varphi \rangle$ for any $\varphi \in \mathbb{N}$._
-
-_Proof sketch._ Order configurations by the pair $(\varphi,\, \lVert e \rVert)$ lexicographically, where $\lVert \cdot \rVert$ is structural size. Recursion and $\mathsf{reify}_L$ strictly decrease $\varphi$; every other reduction leaves $\varphi$ fixed and strictly decreases $\lVert e \rVert$. Since $\mathbb{N} \times \mathbb{N}$ under the lexicographic order is well-founded, no infinite descent exists. The two excluded features are exactly the two that escape this measure: $\mathsf{Unbounded!}$ sets $\varphi = \infty$, and $\mathsf{Loop}$ iterates without drawing fuel. $\qquad\blacksquare$
-
-Lemma 2 is the technical core of honesty: on the fragment that declares no capability and runs no intrinsic loop, evaluation genuinely terminates, so $\bot$ is absent by construction rather than by fiat.
-
-### Preservation and progress
-
-**Theorem 1 (Preservation).** _If $\Gamma; \Delta \vdash e : \tau$ and $\langle e, \varphi \rangle \to \langle e', \varphi' \rangle$, then $\Gamma; \Delta' \vdash e' : \tau$, where $\Delta'$ is related to $\Delta$ by exactly one of_
-
-$$
-\begin{aligned}
-\textbf{intro:} &\quad \Delta' = \Delta,\, l{:}\mathsf{Witness}(T) &&(\mathrm{kinds}(\Delta)\cup\{\kappa\} \in \mathcal{X}) \\
-\textbf{reify}_{T},\ \textbf{reify}_\forall: &\quad \Delta' = \Delta \setminus \{l\} && \\
-\textbf{reify}_L: &\quad \Delta' = (\Delta \setminus \{l\}),\, l'{:}\mathsf{Witness}(U) &&(l'\ \mathsf{Partial}) \\
-\textbf{other:} &\quad \Delta' = \Delta, &&
-\end{aligned}
-$$
-
-_with $\varphi' \le \varphi$ always and $\varphi' < \varphi$ on recursion and $\mathsf{reify}_L$._
-
-_Proof sketch._ Induction on the typing derivation, with the standard substitution lemmas — unrestricted substitution for $\Gamma$, multiplicative for $\Delta$. Each reduction form corresponds to one rule of Sections 2.4–2.5, and the context bookkeeping is read off that rule; the fuel bound follows from the reduction relation of Section 2.1. $\qquad\blacksquare$
-
-**Theorem 2 (Progress).** _If $\cdot; \Delta \vdash e : \tau$, then either $e$ is a value in $V(\tau)$, or $\langle e, \varphi \rangle$ steps._
-
-_Proof sketch._ By canonical forms on the type of the head redex. No well-typed closed term is stuck: fuel exhaustion is a reduction step to an $\mathsf{Unbounded}$ witness rather than a stuck state (Section 2.1), and a $\mathsf{Loop}$ iterates productively (and may additionally take an out-of-band break step). Discharge cannot be misapplied, because a reifier requires a $\mathsf{Witness}(T)$ argument; a renounced phenomenon has already been absorbed into $\mathsf{Total}$ and is an ordinary value, so there is no obligation-free witness for a reifier to fail on. $\qquad\blacksquare$
-
-### Conservation and totality
-
-**Theorem 3 (Conservation).** _If $\cdot; \Delta \vdash v : \tau$ and $v$ is a value, then $\Delta = \cdot$. Consequently every obligation introduced along a reduction is either discharged into $V$ or deferred to a unique $\mathsf{Partial}$ successor, exactly once — never duplicated, never dropped._
-
-_Proof sketch._ A value inhabits $V$, and $V$ is the $\mathsf{Total}$ (empty-disposition) fibre of the result domain (Section 2.2). Linearity forbids discarding a live hypothesis, so no occurrence can survive into a value; the transformation summary of Section 2.5 shows each occurrence is consumed exactly once. $\qquad\blacksquare$
-
-**Corollary (Global Branch Totality).** _Every complete branch of a well-typed function is typeable as $\Gamma;\, \cdot \vdash \mathrm{body}_b : \tau$. The "no value" outcome — the loud, terminal failure of Section 2.3 — is unreachable in well-typed code._
-
-### Honesty
-
-**Theorem 4 (Honesty).** _Let $\cdot;\, \cdot \vdash e : \tau$._
-
-_(i) Bounded honesty. If $\mathrm{caps}(e) = \varnothing$ and $e$ contains no $\mathsf{Loop}$, then evaluation terminates and $\llbracket e \rrbracket \in V(\tau)$ — a value of exactly the declared type. No witness escapes (Conservation), no exceptional outcome escapes ($E$ is reified as $\mathsf{Partial}$ obligations and discharged), and no divergence occurs (Lemma 2). The gap of Chapter 1 collapses completely:_
-
-$$
-\llbracket f \rrbracket : A \to \tau + E + \{\bot\}
-\qquad\text{reduces to}\qquad
-f : A \to \tau .
-$$
-
-_(ii) General honesty. Without those restrictions, the semantic outcome space is uniformly_
-
-$$
-\llbracket e \rrbracket \in \tau + W, \qquad \bot \notin R \ \text{(unconditionally)},
-$$
-
-_and every non-value outcome is disclosed. Exceptional termination is reified into $W$ as $\mathsf{Partial}$ obligations, all discharged in well-typed code. Non-termination arises only under a declared $\mathsf{Unbounded!}$ capability — visible in the signature — or within a $\mathsf{Loop}$ branch — visible in that branch's disposition; in neither case is a bottom value produced. Bottom never appears anywhere in the outcome space._
-
-_Proof sketch._ Part (i) is Conservation (no escaping witness, no escaping $E$) together with Lemma 2 (no divergence). For part (ii), Preservation and Lemma 1 confine every reduction to the admissible fragment; the only steps not covered by the bounded argument are those enabled by a declared capability ($\mathsf{Unbounded!}$, $\mathsf{Awaited!}$), whose phenomena are absorbed into $\mathsf{Total}$, and $\mathsf{Loop}$ iteration, whose non-termination is carried by a $\mathsf{Break}$ obligation. Each such source is recorded either in $\mathrm{caps}(e)$ or in a branch's disposition, both of which the signature carries. Since $\bot \notin R$ holds unconditionally (Section 2.1), no reduction ever produces a bottom value. $\qquad\blacksquare$
-
-This is the sense in which Tacet is honest: **honesty is disclosure, not the absence of $\bot$.** Whatever a well-typed function can do beyond returning a value of its declared type — fail, defer, run unboundedly, loop — is exactly what its signature and its branch dispositions announce, and nothing a function can do is left to a silent bottom, a hidden exception, or an implicit default.
+This invariant is asserted here but not yet proved. Establishing it — and, through it, the honesty that the calculus was built to guarantee — is the work of the next chapter, which develops the metatheory of the system defined in Sections 2.1–2.5.
