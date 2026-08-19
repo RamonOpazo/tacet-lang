@@ -1,6 +1,4 @@
-# Chapter 1 · Introduction
-
-## 1.1 The gap between what a signature promises and what a computation does
+# Introduction
 
 Mainstream type systems provide weaker execution guarantees than their function types appear to suggest, and they leave that weakening implicit. A signature $f : A \to \tau$ claims that evaluation, given an input in $A$, produces a value of type $\tau$. Yet in most languages evaluation may instead terminate through a panic, propagate an exception, or fail to terminate at all — and none of these possibilities is visible in the type. The declared type and the semantic contract it seems to establish diverge, silently.
 
@@ -18,17 +16,23 @@ $$
 
 suppressing $E$ and $\bot$ entirely. The critical dishonesty is that the type describes only the successful, value-producing behaviour of a function, while the signature is read as though it described the whole of $\llbracket f \rrbracket$. The gap between the two is the subject of this work. We seek a calculus that keeps the declared type honest with respect to the semantic outcome space, while exposing only the minimal machinery required to close that gap.
 
-## 1.2 Three places to put failure
+## Models of failure placement
 
 Existing disciplines for handling failure differ, in essence, over a single question: _where is failure reified?_ Three answers are already in wide use, and the contrast between them motivates ours.
 
-**In the value type (monadic encapsulation).** Languages such as Haskell may represent failure explicitly in the return type, transforming a function that might fail from $A \to B$ into $A \to \mathrm{Maybe}\,B$. The possibility of failure is thereby made static and propagated through subsequent computation. But the failure has been relocated _into the value domain_: $\mathrm{Maybe}\,B$ replaces the domain $B$ with one that additionally represents absence, so the caller must continuously reason about the computational context — the wrapper — alongside the underlying value. The resulting function is total with respect to its monadic domain, yet its value space has been weakened, because the absence of a value is now representable within the enclosing type.
+### In the value type (monadic encapsulation)
 
-**Nowhere in the type (exceptions).** Languages such as Python model failure as a runtime control-flow object that interrupts evaluation and propagates outward until handled. A function annotated $f : A \to B$ may return a value of type $B$, or it may raise, with no indication of that possibility in its type. The value space stays clean — a returned $B$ really is a $B$ — but honesty is lost: the signature asserts a totality the function does not possess, and the exceptional path remains an invisible control-flow escape.
+Languages such as Haskell may represent failure explicitly in the return type, transforming a function that might fail from $A \to B$ into $A \to \mathrm{Maybe}\,B$. The possibility of failure is thereby made static and propagated through subsequent computation. But the failure has been relocated _into the value domain_: $\mathrm{Maybe}\,B$ replaces the domain $B$ with one that additionally represents absence, so the caller must continuously reason about the computational context — the wrapper — alongside the underlying value. The resulting function is total with respect to its monadic domain, yet its value space has been weakened, because the absence of a value is now representable within the enclosing type.
+
+### Nowhere in the type (exceptions)
+
+Languages such as Python model failure as a runtime control-flow object that interrupts evaluation and propagates outward until handled. A function annotated $f : A \to B$ may return a value of type $B$, or it may raise, with no indication of that possibility in its type. The value space stays clean — a returned $B$ really is a $B$ — but honesty is lost: the signature asserts a totality the function does not possess, and the exceptional path remains an invisible control-flow escape.
 
 These two disciplines sit at opposite corners of a trade-off. The monadic discipline buys honesty by weakening the value space; the exceptional discipline preserves the value space by abandoning honesty.
 
-**In the typing judgment (Tacet).** We take a third position. Failure is reified neither inside the value type nor nowhere, but in the _typing judgment itself_, as a linear obligation recorded alongside — not inside — the value type. Judgments take the form
+### In the typing judgment (ours)
+
+We take a third position. Failure is reified neither inside the value type nor nowhere, but in the _typing judgment itself_, as a linear obligation recorded alongside — not inside — the value type. Judgments take the form
 
 $$
 \Gamma;\ \Delta \vdash e : \tau,
@@ -36,13 +40,13 @@ $$
 
 where $\tau$ is the ordinary value type, kept clean, and $\Delta$ is a linear context of obligations the computation must discharge. The value type continues to promise exactly $\tau$; the honesty is carried by $\Delta$. This is the central move of the paper: we obtain a signature that is honest about failure _without_ enriching $\tau$, by placing the obligation in the context rather than in the value.
 
-## 1.3 Strong and weak value spaces
+## Strong and weak value spaces
 
 The distinction just drawn can be stated once and for all. A value space is **weak** when computational failure is representable within the same domain as successful values: $\mathrm{Maybe}\,B$ is weak because the absence of a $B$ inhabits the very type that is supposed to contain values of $B$. A value space is **strong** when it preserves the separation between values and computational outcomes: $\tau$ contains only values of type $\tau$, while failure, divergence, and exceptional termination remain distinct computational outcomes, tracked elsewhere.
 
 Tacet maintains a strong value space. No element of $\tau$ ever denotes a failure, and $\bot$ is never an inhabitant of a value type. A strong value space has no bottom, and therefore no representable _absence_: Tacet has no $\mathtt{null}$, no $\mathtt{none}$, no $\mathtt{nothing}$, no falsy stand-in for a missing value. The honest way to say "there is no value here" is not a degenerate inhabitant but a reified obligation — so absence is a computational outcome, never a value. Whatever can go wrong in a computation is accounted for outside $\tau$ — and, as the next section explains, accounted for _explicitly_.
 
-## 1.4 Honesty is disclosure, not the absence of failure
+## Honesty is disclosure, not the absence of failure
 
 We do not attempt to abolish failure, and we cannot abolish divergence — the halting problem forbids deciding, in general, whether an arbitrary computation terminates. Our principle is weaker and attainable: every way in which a computation may deviate from returning a value of its declared type must be **disclosed**. Honesty, in Tacet, is not the absence of $\bot$ but the disclosure of its possibility.
 
@@ -54,7 +58,7 @@ The `tacet` construct is the syntactic bridge that lets a computation raise such
 
 Some phenomena resist discharge by their nature. An unbounded recursion may never reach a value to recover, and a fire-and-forget effect has, by design, no value to recover. Such phenomena may be _renounced_ rather than discharged — but only by declaring a corresponding **capability** in the function's signature. Declaring the capability to run unboundedly, for instance, discloses to every caller that evaluation may not terminate; it does not thereby introduce a bottom value. Where a renounced computation does produce a result, that result is an ordinary value; where it does not — as with genuine non-termination — the outcome is simply the disclosed risk the caller was warned of, never a silent $\bot$. A function that declares no such capability is guaranteed, by construction, to return a value of its declared type. In this way the outcome space $\tau + E + \{\bot\}$ is honestly resolved: exceptional outcomes are reified and discharged, non-termination appears only where a capability announces it, and no bottom value is ever produced. Whatever a function can do beyond returning $\tau$ is precisely what its type and its capabilities disclose.
 
-## 1.5 Contributions
+## Contributions
 
 This paper develops the calculus sketched above and establishes its basic metatheory. Concretely, it contributes:
 
@@ -63,6 +67,6 @@ This paper develops the calculus sketched above and establishes its basic metath
 - **linear discharge rules** — reification in several forms, one of which defers by reifying into a fresh obligation rather than a value — together with a type-preserving/type-transforming distinction that renders a branch's codomain discipline statically analyzable; and
 - a **metatheory**: preservation and progress for the linear fragment, a conservation result stating that no obligation is ever silently dropped, and an **honesty theorem** establishing that the outcomes of a well-typed program coincide with its declared type, up to the capabilities and branch dispositions its signature explicitly declares.
 
-## 1.6 Structure of the paper
+## Structure of the paper
 
 Chapter 2 develops the formal semantics: it defines the result domain and the reduction relation, characterizes the disposition algebra that governs how witnesses compose, and gives the introduction and discharge rules through which obligations enter and leave the linear context. Chapter 3 establishes the metatheory — preservation, progress, conservation, and the honesty theorem that makes the central claim precise. Chapter 4 turns to the surface language, giving the grammar of Tacet and mapping each semantic rule of Chapters 2–3 onto the concrete syntax that triggers it.

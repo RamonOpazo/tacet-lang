@@ -1,0 +1,29 @@
+\begin{figure}[t!]
+    \centering
+    \begin{tikzcd}[column sep=5em, row sep=5em]
+        & A
+       	\ar[d, "\operatorname{select}_f"]
+        & & L
+       	\ar[from=d, "\operatorname{name}"] \\
+        B
+       	\ar[from=r, hook]
+        & B_f
+       	\ar[from=rr, "p_B"]
+        & & L_f
+       	\ar[from=ddd, "\operatorname{expose}"'] \\
+        & R
+       	\ar[from=u, "\operatorname{eval}"]
+       	\ar[from=dl, hook]
+       	\ar[from=dr, hook] \\
+        V
+       	\ar[from=d, "\mathsf{Total}"]
+        & & W
+       	\ar[from=dl, hook]
+       	\ar[from=dr, hook] \\
+        \varnothing
+        & W_0
+        & & |[alias=WL]| W_L \\
+    \end{tikzcd}
+    \caption{Semantic structure of function evaluation. An input selects a branch, $\operatorname{select}_f : A \to B_f$, which evaluates, $\operatorname{eval} : B_f \to R$, into the result domain $R = V \uplus W$ with $W = W_0 \uplus W_L$ (the hooked arrows are the coproduct injections). The three regions are the fibres of the disposition: $V$ holds $\mathsf{Total}$ outcomes — ordinary values, into which the empty witnessing type maps via $\mathsf{Total} : \varnothing \to V$ — while $W_L$ holds witnesses that expose a linear obligation and $W_0$ holds null-obligation witnesses, renounced bookkeeping that owes nothing and ultimately maps to $\mathsf{Total}$. Bottom is not an object of the diagram: $\bot \notin R$, unconditionally. On the obligation side, $L_f$ is the total space of the family $\operatorname{obligations} : B_f \to \mathbf{Set}$ (Section 2.3), carrying the projection $p_B : L_f \to B_f$ and the generally non-injective $\operatorname{name} : L_f \to L$; witnesses meet obligations through the set-valued $\operatorname{expose} : W_L \to \mathcal{P}_{\mathrm{fin}}(L_f)$. The internal structure of $V$, $W$, and $L_f$ is developed in Sections 2.2–2.3.}
+    \label{fig:function-eval}
+\end{figure}

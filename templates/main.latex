@@ -1,0 +1,160 @@
+\documentclass[11pt,a4paper,oneside]{scrbook}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{unicode-math}
+\usepackage{polyglossia}
+\setdefaultlanguage{english}
+
+\setmainfont{Cochineal}[
+    Numbers={OldStyle,Proportional},
+    SmallCapsFeatures={LetterSpace=2.0}
+]
+\setsansfont{Roboto}[
+    Scale=MatchLowercase
+]
+\setmonofont{Iosevka Nerd Font}[
+    Scale=MatchLowercase
+]
+\setmathfont{STIXTwoMath-Regular.otf}[
+    Scale=MatchLowercase
+]
+\newcommand{\llbracket}{\lBrack}
+\newcommand{\rrbracket}{\rBrack}
+
+\usepackage{tikz-cd}
+\usetikzlibrary{decorations.pathmorphing}
+
+\usepackage[
+    top=3cm,%
+    bottom=3.5cm,%
+    left=3cm,%
+    right=6cm,%
+    marginparwidth=4.5cm,%
+    marginparsep=0.5cm,%
+    footskip=1.5cm%
+    % showframe
+]{geometry}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=blue!70!black
+}
+
+\RequirePackage{enumitem}
+\setlist[itemize]{%
+  topsep=6pt,      % space before first item
+  itemsep=6pt,     % space between items
+  parsep=0pt,      % space between paragraphs within items
+  partopsep=0pt,   % extra space in list environment
+}
+\let\tightlist\relax
+
+% Sectioning
+\setcounter{secnumdepth}{1}
+
+% ========== CHAPTER ==========
+\RedeclareSectionCommand[
+  level=0,
+  font=\normalfont\huge\bfseries,
+  tocentryformat=\normalfont\normalsize\bfseries,
+  tocentrynumwidth=12pt,
+  beforeskip=0.25\textheight,
+  afterskip=1.5\baselineskip,
+  afterindent=false
+]{chapter}
+
+% Number in margin
+\renewcommand\chapterformat{\llap{\thechapter\hspace{10pt}}}
+
+% ========== SECTION ==========
+\RedeclareSectionCommand[
+  level=1,
+  font=\normalfont\large\bfseries,
+  tocentrynumwidth=18pt,
+  tocbeforeskip=2pt,
+  beforeskip=\baselineskip,
+  afterskip=0.5\baselineskip,
+  indent=0pt,
+  tocindent=12pt,
+  afterindent=false
+]{section}
+
+\renewcommand\sectionformat{\llap{\thesection\hspace{10pt}}}
+
+% ========== SUBSECTION ==========
+\RedeclareSectionCommand[
+  level=2,
+  font=\normalfont\normalsize\itshape,
+  tocentryformat=\normalfont\normalsize\itshape,
+  tocentrynumwidth=0pt,
+  tocbeforeskip=2pt,
+  beforeskip=\baselineskip,
+  afterskip=0.5\baselineskip,
+  indent=0pt,
+  tocindent=30pt,
+  afterindent=false
+]{subsection}
+
+\renewcommand\subsectionformat{\llap{\thesubsection\hspace{10pt}}}
+
+\addtokomafont{caption}{\small\rmfamily}
+\addtokomafont{captionlabel}{\bfseries\rmfamily}
+% \setcapseparator{:\quad}
+\setcapindent{0pt}
+\KOMAoptions{captions=tableheading}
+
+% Hyperlinks
+\RequirePackage{bookmark}
+\RequirePackage{hyperref}
+\hypersetup{
+  colorlinks = true,
+  linkcolor = blue,
+  filecolor = blue,
+  citecolor = blue,
+  urlcolor = blue
+}
+
+
+\title{%
+  \Huge \textbf{Tacet:\\An Honest Approach to Value Reification}
+}
+
+\author{%
+  \textbf{Ramon Opazo} \\
+  \small%
+    \href{mailto:ramon.opazo.c@gmail.com}%
+    {\texttt{ramon.opazo.c@gmail.com}} \\
+  \small%
+    \href{https://github.com/RamonOpazo/tacet-lang}%
+    {\texttt{github.com/RamonOpazo/tacet-lang}} \\[0.25em]
+  \small%
+    \emph{Independent Research}
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\newpage
+
+% \addchap{Abstract}
+% \input{../src/000_abstract.latex}
+
+\tableofcontents
+
+\newpage
+
+\input{../src/100_introduction.latex}
+\input{../src/200_semantics.latex}
+\input{../src/300_metatheory.latex}
+
+\end{document}
