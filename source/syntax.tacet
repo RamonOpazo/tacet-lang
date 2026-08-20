@@ -1,0 +1,166 @@
+// URL parser and structured set.
+
+std/url #Module
+
+Url :: {
+    .scheme   -> Str! "https" // default scheme if none given
+    .username -> Str?
+    .password -> Str?
+    .host     -> Str?
+    .port     -> Nat?
+    .path     -> Path?
+    .query    -> { (Str -> Str) => p } // empty set-dict if none given
+    .fragment -> Str?
+}
+
+Url.with_scheme -> Str -> Url :=
+    s -> { .Url..., .scheme s } // new Url with scheme redefinition
+
+Url.with_credentials -> { .username -> Str?, .password -> Str? } -> Url :=
+    c -> { .Url..., c... } // new Url with credentials redefinition
+
+Url.with_port -> Nat -> Url :=
+    p -> { .Url..., .port p } // new Url with port redefinition
+
+Url.with_query -> { (Str -> Str) => p } -> Url :=
+    q -> { .Url..., .query q } // new Url with query redefinition
+
+Url.with_fragment -> Str -> Url :=
+    f -> { .Url..., .fragment f } // new Url with fragment redefinition
+
+Url.without_credentials -> Url :=
+    { .Url..., .username ~, .password ~ } // new Url with fragment elimination
+
+Url.without_port -> Url :=
+    { .Url..., .port ~ } // new Url with port elimination
+
+Url.without_path -> Url :=
+    { .Url..., .path ~ } // new Url with path elimination
+
+Url.without_fragment -> Url :=
+    { .Url..., .fragment ~ } // new Url with fragment elimination
+
+Url.without_query -> Url :=
+    { .Url..., .query ~ } // new Url with fragment elimination
+
+Url.has_special_scheme -> Bool :=
+    .scheme <? UrlSpecialSchemes // belongs to (<?) used with types, not valued expressions
+
+Url._fcredentials -> Str?
+    .username, .password |>
+        Str, Str    => .username <> ":" <> .password
+        Str, #Reify => .username
+        _, _        => tacet #Reify
+
+Url._fhost -> Str? :=
+    c := (._fcredentials <> "@")?
+    p := (":" <> to_str u.port)?
+    t := (c <> p <> "/")! ""
+    (.host <> "/" <> t)?
+
+Url._fquery -> Str? :=
+    ( .query... => k -> v -> (fmt! "?") <> k <> "=" v <> "&" ) |>
+        Str => s -> ( s..., ~ ) // string destructuring with tail elimination
+        _   => tacet #Reify
+
+Url._ffragment -> Str? :=
+    ("#" <> .fragment)?
+
+Url._fscheme -> Str? :=
+    ._fhost, .path |>
+        #Reify, Path.is_relative -> ":/"
+        Str, _                   -> .scheme <> "://"
+        _, _                     -> tacet #Reify
+
+Url._encode -> Str -> Str := // percent-encoding strings
+    s... => c -> (acc! "") <> (c <? UrlReservedChars) ("%" <> to_hex c) c
+
+Url._encode_reserved -> Str -> Str := // encode percent-encoded strings safely
+    tacet #Reify // basically: not implemented
+
+Url._decode -> Str -> Str :=
+    tacet #Reify // decode percent-encoded strings safely
+
+Url._deserialize -> Str -> Url? :=
+    tacet #Reify // uses Url._decode pass
+
+Url._serialize -> Str :=
+    |(<>)
+        ._fscheme! ""
+        ._fhost! ""
+        .path!._serialize ""
+        ._fquery! ""
+        ._ffragment! ""
+
+Url._serialize_safe -> Str := // naive implementation, must decide if char is necessary to encode
+    ._encode(._serialize)
+
+
+// URL domain sets
+
+UrlReservedChars :: { "!#$&'()*+,/:;=?@[]"... } // by default: { Char }
+
+UrlUnreservedChars :: {
+    "-._~"... // by default: { Char }
+    0uA...0uZ // chars A to Z: { Char }
+    0ua...0uz // chars a to z: { Char }
+    0u0...0u9 // chars 0 to 9: { Char }
+}
+
+UrlSpecialSchemes :: {
+    "ftp"
+    "file"
+    "http"
+    "https"
+    "ws"
+    "wss"
+}
+
+UrlDefaultSchemePort :: { (Url.scheme -> Nat?) => a } := {
+    "ftp"   -> 21
+    "file"  -> tacet #Reify
+    "http"  -> 80
+    "https" -> 443
+    "ws"    -> 80
+    "wss"   -> 443
+    _       -> tacet #Reify
+}
+
+
+// URL domain product functions
+
+parse :: Str -> Url #Reify
+parse s := (Url._deserialize s)?
+
+quote :: Str -> Str #Reify
+quote s := (parse s)?._serialize_safe
+
+unquote :: Str -> Str #Reify
+unquote s := (parse s)?._serialize
+
+
+// prelude extension signatures (only generic functions can be signature extended)
+
+_eq Url Url :=
+    a -> b -> a._serialize == b._serialize
+
+_neq Url Url :=
+    a -> b -> a._serialize != b._serialize
+
+_lt Url Url :=
+    a -> b -> a._serialize < b._serialize
+
+_le Url Url :=
+    a -> b -> a._serialize <= b._serialize
+
+_gt Url Url :=
+    a -> b -> a._serialize > b._serialize
+
+_ge Url Url :=
+    a -> b -> a._serialize >= b._serialize
+
+to_str Url := // to_str extension to Url type
+    u -> u._serialize
+
+to_bytes Url := // to_bytes extension to Url type
+    u -> to_bytes u._serialize

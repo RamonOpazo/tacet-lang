@@ -1,0 +1,83 @@
+% =============================================================================
+%  Tacet -- shared macros and environment setup
+%  \input this once from the master preamble, before the chapter files.
+%
+%  ASSUMED PACKAGES (load in the master preamble):
+%     scrbook (KOMA-Script)   amsmath  amsthm  amssymb  mathtools
+%     stmaryrd     % \llbracket \rrbracket for the denotation brackets
+%     booktabs     % tables
+%     mathpartir   % \inferrule for the typing rules
+%     tikz + \usetikzlibrary{cd}     % Figure 2.1 (loaded from figures/)
+%
+%  ASSUMED COUNTER SETUP (in the master preamble):
+%     \setcounter{secnumdepth}{1}   % number chapters and sections only
+%     \setcounter{tocdepth}{2}      % but list subsections in the ToC
+%
+%  Cross-references go through \secref/\chapref/\figref/\defref below, so the
+%  document does NOT depend on cleveref. To switch to cleveref, redefine those
+%  four macros in terms of \Cref and nothing in the chapters needs to change.
+% =============================================================================
+
+% ---- Theorem-like environments: one shared counter, reset per chapter -------
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+% (the proof environment comes from amsthm)
+
+% ---- Cross-reference helpers (portable; redefine via \Cref if preferred) -----
+\newcommand{\secref}[1]{Section~\ref{#1}}
+\newcommand{\chapref}[1]{Chapter~\ref{#1}}
+\newcommand{\figref}[1]{Figure~\ref{#1}}
+\newcommand{\defref}[1]{Definition~\ref{#1}}
+
+% ---- Denotation / semantic brackets -----------------------------------------
+\newcommand{\sem}[1]{\llbracket #1 \rrbracket}
+
+% ---- Result domain and its regions ------------------------------------------
+\newcommand{\Rdom}{R}
+\newcommand{\Vdom}{V}
+\newcommand{\Wdom}{W}
+\newcommand{\WL}{W_L}
+\newcommand{\Wz}{W_0}
+\newcommand{\Ldom}{L}
+\newcommand{\Lf}{L_f}
+\newcommand{\Bdom}{B}
+\newcommand{\Bf}{B_f}
+
+% ---- Witness kinds and the obligations they expose --------------------------
+%  If \Loop or \Break clash with a loaded package, rename them here and in the
+%  chapter sources (they are the only two names at any real risk of collision).
+\newcommand{\Total}{\mathsf{Total}}
+\newcommand{\Partial}{\mathsf{Partial}}
+\newcommand{\Unbounded}{\mathsf{Unbounded}}
+\newcommand{\Awaited}{\mathsf{Awaited}}
+\newcommand{\Loop}{\mathsf{Loop}}
+\newcommand{\Reify}{\mathsf{Reify}}
+\newcommand{\Bound}{\mathsf{Bound}}
+\newcommand{\Sync}{\mathsf{Sync}}
+\newcommand{\Break}{\mathsf{Break}}
+\newcommand{\Unbz}{\mathsf{Unbounded}_0}   % renounced (null-obligation) forms
+\newcommand{\Awz}{\mathsf{Awaited}_0}
+\newcommand{\KL}{\mathcal{K}_L}            % the four linear kinds
+\newcommand{\flag}{\mathcal{X}}            % the flag (admissibility) complex
+
+% ---- Witness type -----------------------------------------------------------
+\newcommand{\Wit}{\mathsf{Witness}}
+
+% ---- Constructs, maps, operators --------------------------------------------
+\newcommand{\tacet}{\mathsf{tacet}}
+\newcommand{\reify}{\mathsf{reify}}
+\newcommand{\select}{\operatorname{select}}
+\newcommand{\eval}{\operatorname{eval}}
+\newcommand{\expose}{\operatorname{expose}}
+\newcommand{\obl}{\operatorname{obligations}}
+\newcommand{\name}{\operatorname{name}}
+\newcommand{\pB}{p_{B}}
+\newcommand{\caps}{\operatorname{caps}}
+\newcommand{\kinds}{\operatorname{kinds}}
+\newcommand{\intro}{\mathrm{intro}}
+
+% ---- Literal surface syntax -------------------------------------------------
+\newcommand{\code}[1]{\texttt{#1}}         % e.g. \code{|>}

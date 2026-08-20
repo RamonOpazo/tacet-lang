@@ -1,0 +1,28 @@
+% figures/fig_semantic_structure.tikz
+% Semantic structure of function evaluation (Figure 2.1).
+% Requires \usepackage{tikz-cd} in the master preamble.
+% Written with raw notation so the figure compiles independently of 000_macros.
+\begin{tikzcd}[column sep=5em, row sep=5em]
+& A
+	\ar[d, "\operatorname{select}_f"]
+& & L
+	\ar[from=d, "\operatorname{name}"] \\
+B
+	\ar[from=r, hook]
+& B_f
+	\ar[from=rr, "p_B"]
+& & L_f
+	\ar[from=ddd, "\operatorname{expose}"'] \\
+& R
+	\ar[from=u, "\operatorname{eval}"]
+	\ar[from=dl, hook]
+	\ar[from=dr, hook] \\
+V
+	\ar[from=d, "\mathsf{Total}"]
+& & W
+	\ar[from=dl, hook]
+	\ar[from=dr, hook] \\
+\varnothing
+& W_0
+& & W_L \\
+\end{tikzcd}
